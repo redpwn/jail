@@ -13,10 +13,13 @@ done
 
 mount -t tmpfs tmpfs /tmp
 
-cat << EOF > /tmp/nsjail.cfg
+nsjail_cfg=/tmp/nsjail.cfg
+
+cat << EOF > $nsjail_cfg
 mode: LISTEN
 port: 5000
 time_limit: ${JAIL_WALL_TIME:-30}
+max_conns_per_ip: ${JAIL_CONNS_PER_IP:-0}
 
 rlimit_as_type: HARD
 rlimit_cpu_type: HARD
@@ -26,7 +29,7 @@ cgroup_pids_max: ${JAIL_PIDS:-5}
 cgroup_pids_mount: "/jail/cgroup/pids"
 cgroup_mem_max: ${JAIL_MEM:-5242880}
 cgroup_mem_mount: "/jail/cgroup/memory"
-cgroup_cpu_ms_per_sec: 100
+cgroup_cpu_ms_per_sec: ${JAIL_CPU:-100}
 cgroup_cpu_mount: "/jail/cgroup/cpu,cpuacct"
 max_cpus: 1
 
@@ -66,12 +69,31 @@ mount {
   dst: "/dev/urandom"
   is_bind: true
 }
+mount {
+  src: "/dev/random"
+  dst: "/dev/random"
+  is_bind: true
+}
+mount {
+  src: "/dev/null"
+  dst: "/dev/null"
+  is_bind: true
+}
+mount {
+  src: "/dev/zero"
+  dst: "/dev/zero"
+  is_bind: true
+}
 
 hostname: "challenge"
 cwd: "/app"
 exec_bin {
   path: "/app/challenge"
 }
+
+keep_env: ${JAIL_KEEP_ENV:-false}
 EOF
 
-exec setuidgid nsjail setpriv --inh-caps -chown,-setuid,-setgid,-sys_admin,-setpcap /jail/nsjail -C /tmp/nsjail.cfg
+[ -e /jail/hook.sh ] && . /jail/hook.sh
+
+exec setuidgid nsjail setpriv --inh-caps -chown,-setuid,-setgid,-sys_admin,-setpcap /jail/nsjail -C $nsjail_cfg
