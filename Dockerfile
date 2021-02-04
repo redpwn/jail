@@ -3,7 +3,7 @@ FROM debian:10.7-slim AS build
 WORKDIR /jail
 RUN apt-get update && \
     apt-get install -y curl autoconf bison flex gcc g++ git libprotobuf-dev libnl-route-3-dev libtool make pkg-config protobuf-compiler
-RUN git clone --depth 1 --branch 3.0 https://github.com/google/nsjail . && make
+RUN git clone https://github.com/google/nsjail . && git checkout e1e80e8efa902f4c01c4bb39aa72af99c97b8a37 && make
 
 FROM busybox:1.32.1-glibc
 
