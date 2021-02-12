@@ -2,16 +2,20 @@
 
 set -eu
 
+mount -t tmpfs tmpfs /tmp
+
 cgroup_root=/jail/cgroup
 
-for controller in cpu,cpuacct memory pids; do
-  mount -t cgroup -o $controller,rw,nosuid,nodev,noexec,relatime cgroup $cgroup_root/$controller
-  chmod u+w $cgroup_root/$controller
-  mkdir -p $cgroup_root/$controller/NSJAIL
-  chown nsjail:nsjail $cgroup_root/$controller/NSJAIL
-done
+mount_cgroup() {
+  mount -t cgroup -o "$1,rw,nosuid,nodev,noexec,relatime" cgroup "$cgroup_root/$2" || return 1
+  chmod u+w "$cgroup_root/$2"
+  mkdir -p "$cgroup_root/$2/NSJAIL"
+  chown nsjail:nsjail "$cgroup_root/$2/NSJAIL"
+}
 
-mount -t tmpfs tmpfs /tmp
+mount_cgroup pids pids
+mount_cgroup memory memory
+mount_cgroup cpu cpu || mount_cgroup cpu,cpuacct cpu
 
 nsjail_cfg=/tmp/nsjail.cfg
 
@@ -19,6 +23,7 @@ cat << EOF > $nsjail_cfg
 mode: LISTEN
 port: 5000
 time_limit: ${JAIL_WALL_TIME:-30}
+max_conns: ${JAIL_CONNS:-0}
 max_conns_per_ip: ${JAIL_CONNS_PER_IP:-0}
 
 rlimit_as_type: HARD
@@ -26,11 +31,11 @@ rlimit_cpu_type: HARD
 rlimit_fsize_type: HARD
 rlimit_nofile_type: HARD
 cgroup_pids_max: ${JAIL_PIDS:-5}
-cgroup_pids_mount: "/jail/cgroup/pids"
+cgroup_pids_mount: "$cgroup_root/pids"
 cgroup_mem_max: ${JAIL_MEM:-5242880}
-cgroup_mem_mount: "/jail/cgroup/memory"
+cgroup_mem_mount: "$cgroup_root/memory"
 cgroup_cpu_ms_per_sec: ${JAIL_CPU:-100}
-cgroup_cpu_mount: "/jail/cgroup/cpu,cpuacct"
+cgroup_cpu_mount: "$cgroup_root/cpu"
 max_cpus: 1
 
 seccomp_string: "KILL {"
@@ -70,11 +75,6 @@ mount {
   is_bind: true
 }
 mount {
-  src: "/dev/random"
-  dst: "/dev/random"
-  is_bind: true
-}
-mount {
   src: "/dev/null"
   dst: "/dev/null"
   is_bind: true
@@ -90,8 +90,6 @@ cwd: "/app"
 exec_bin {
   path: "/app/challenge"
 }
-
-keep_env: ${JAIL_KEEP_ENV:-false}
 EOF
 
 [ -e /jail/hook.sh ] && . /jail/hook.sh
