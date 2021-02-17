@@ -2,7 +2,7 @@
 
 set -eu
 
-mount -t tmpfs tmpfs /tmp
+mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime tmpfs /tmp
 
 cgroup_root=/jail/cgroup
 
@@ -57,6 +57,11 @@ mount {
 mount {
   src: "/app/usr/bin"
   dst: "/usr/bin"
+  is_bind: true
+}
+mount {
+  src: "/app/usr/lib"
+  dst: "/usr/lib"
   is_bind: true
 }
 mount {
