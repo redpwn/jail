@@ -1,0 +1,18 @@
+version: '2.4'
+services:
+  python:
+    build: .
+    ports:
+      - 5000:5000
+    read_only: true
+    cap_drop:
+      - all
+    cap_add:
+      - chown
+      - setuid
+      - setgid
+      - sys_admin
+      - setpcap
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=../../seccomp.json

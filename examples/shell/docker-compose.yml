@@ -1,10 +1,9 @@
 version: '2.4'
-networks:
-  jail:
-    internal: true
 services:
-  jail:
+  shell:
     build: .
+    ports:
+      - 5000:5000
     read_only: true
     cap_drop:
       - all
@@ -16,6 +15,4 @@ services:
       - setpcap
     security_opt:
       - apparmor=unconfined
-      - seccomp=seccomp.json
-    networks:
-      - jail
+      - seccomp=../../seccomp.json
