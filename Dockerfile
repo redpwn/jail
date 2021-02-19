@@ -8,7 +8,10 @@ RUN git clone https://github.com/google/nsjail . && git checkout 645eabd862e4eb2
 FROM busybox:1.32.1-glibc
 
 RUN adduser -HDu 1000 nsjail && \
-    mkdir -p /app /jail/cgroup/cpu /jail/cgroup/memory /jail/cgroup/pids
+    mkdir -p /app /jail/cgroup/cpu /jail/cgroup/memory /jail/cgroup/pids /jail/dev && \
+    mknod -m 666 /jail/dev/null c 1 3 && \
+    mknod -m 666 /jail/dev/zero c 1 5 && \
+    mknod -m 444 /jail/dev/urandom c 1 9
 COPY --from=build /jail/nsjail /jail/nsjail
 COPY --from=build /usr/lib/x86_64-linux-gnu/libprotobuf.so.17 \
     /usr/lib/x86_64-linux-gnu/libnl-route-3.so.200 \

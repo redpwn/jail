@@ -17,6 +17,8 @@ mount_cgroup pids pids
 mount_cgroup memory memory
 mount_cgroup cpu cpu || mount_cgroup cpu,cpuacct cpu
 
+mount --bind /jail/dev /app/dev
+
 nsjail_cfg=/tmp/nsjail.cfg
 
 cat << EOF > $nsjail_cfg
@@ -45,49 +47,11 @@ seccomp_string: "}"
 seccomp_string: "DEFAULT ALLOW"
 
 mount {
-  src: "/app/app"
-  dst: "/app"
+  src: "/app"
+  dst: "/"
   is_bind: true
-}
-mount {
-  src: "/app/bin"
-  dst: "/bin"
-  is_bind: true
-}
-mount {
-  src: "/app/usr/bin"
-  dst: "/usr/bin"
-  is_bind: true
-}
-mount {
-  src: "/app/usr/lib"
-  dst: "/usr/lib"
-  is_bind: true
-}
-mount {
-  src: "/app/lib/x86_64-linux-gnu"
-  dst: "/lib/x86_64-linux-gnu"
-  is_bind: true
-}
-mount {
-  src: "/app/lib64"
-  dst: "/lib64"
-  is_bind: true
-}
-mount {
-  src: "/dev/urandom"
-  dst: "/dev/urandom"
-  is_bind: true
-}
-mount {
-  src: "/dev/null"
-  dst: "/dev/null"
-  is_bind: true
-}
-mount {
-  src: "/dev/zero"
-  dst: "/dev/zero"
-  is_bind: true
+  nosuid: true
+  nodev: true
 }
 
 hostname: "challenge"
