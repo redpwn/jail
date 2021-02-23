@@ -2,7 +2,7 @@
 
 An [nsjail](https://nsjail.dev) Docker image for CTF pwnables
 
-## Quick start
+## Quick Start
 
 In [`examples/shell`](https://github.com/redpwn/jail/tree/master/examples/shell), run:
 
@@ -11,7 +11,7 @@ sysctl -w kernel.unprivileged_userns_clone=1 # debian only
 docker-compose up
 ```
 
-To connect to the challenge, run:
+To connect to the jail, run:
 
 ```bash
 nc 127.0.0.1 5000

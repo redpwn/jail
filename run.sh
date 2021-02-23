@@ -3,23 +3,19 @@
 set -eu
 
 mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime tmpfs /tmp
+mount --bind /jail/dev /app/dev
 
 cgroup_root=/jail/cgroup
+nsjail_cfg=/tmp/nsjail.cfg
 
 mount_cgroup() {
   mount -t cgroup -o "$1,rw,nosuid,nodev,noexec,relatime" cgroup "$cgroup_root/$2" || return 1
   chmod u+w "$cgroup_root/$2"
-  mkdir -p "$cgroup_root/$2/NSJAIL"
-  chown nsjail:nsjail "$cgroup_root/$2/NSJAIL"
+  parent=$(awk -v "controller=$1" '{split($0, parts, ":")} parts[2] == controller {print parts[3]}' /proc/self/cgroup)/NSJAIL
+  mkdir -p "$cgroup_root/$2/$parent"
+  chown nsjail:nsjail "$cgroup_root/$2/$parent"
+  echo "$parent"
 }
-
-mount_cgroup pids pids
-mount_cgroup memory memory
-mount_cgroup cpu cpu || mount_cgroup cpu,cpuacct cpu
-
-mount --bind /jail/dev /app/dev
-
-nsjail_cfg=/tmp/nsjail.cfg
 
 cat << EOF > $nsjail_cfg
 mode: LISTEN
@@ -34,10 +30,13 @@ rlimit_fsize_type: HARD
 rlimit_nofile_type: HARD
 cgroup_pids_max: ${JAIL_PIDS:-5}
 cgroup_pids_mount: "$cgroup_root/pids"
+cgroup_pids_parent: "$(mount_cgroup pids pids)"
 cgroup_mem_max: ${JAIL_MEM:-5242880}
 cgroup_mem_mount: "$cgroup_root/memory"
+cgroup_mem_parent: "$(mount_cgroup memory memory)"
 cgroup_cpu_ms_per_sec: ${JAIL_CPU:-100}
 cgroup_cpu_mount: "$cgroup_root/cpu"
+cgroup_cpu_parent: "$(mount_cgroup cpu cpu || mount_cgroup cpu,cpuacct cpu)"
 max_cpus: 1
 
 seccomp_string: "KILL {"
