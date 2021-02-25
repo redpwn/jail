@@ -1,4 +1,4 @@
 FROM redpwn/jail
 
-COPY --from=ubuntu / /app
-COPY --from=ubuntu /bin/sh /app/app/challenge
+COPY --from=ubuntu / /srv
+RUN mkdir /srv/app && ln -s /bin/sh /srv/app/run

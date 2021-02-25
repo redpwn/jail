@@ -39,7 +39,7 @@ To remove a limit, set its value to `0`.
 
 Name|Default|Description
 -|-|-
-`JAIL_WALL_TIME`|30|Maximum wall time per connection
+`JAIL_TIME`|30|Maximum wall time per connection
 `JAIL_CONNS`|0|Maximum concurrent connections across all IPs
 `JAIL_CONNS_PER_IP`|0|Maximum concurrent connections for each IP
 `JAIL_PIDS`|5|Maximum PIDs per connection

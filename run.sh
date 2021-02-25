@@ -3,7 +3,8 @@
 set -eu
 
 mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime tmpfs /tmp
-mount --bind /jail/dev /app/dev
+
+[ -d /srv/dev ] && mount --bind /jail/dev /srv/dev
 
 cgroup_root=/jail/cgroup
 nsjail_cfg=/tmp/nsjail.cfg
@@ -20,7 +21,7 @@ mount_cgroup() {
 cat << EOF > $nsjail_cfg
 mode: LISTEN
 port: 5000
-time_limit: ${JAIL_WALL_TIME:-30}
+time_limit: ${JAIL_TIME:-30}
 max_conns: ${JAIL_CONNS:-0}
 max_conns_per_ip: ${JAIL_CONNS_PER_IP:-0}
 
@@ -46,17 +47,17 @@ seccomp_string: "}"
 seccomp_string: "DEFAULT ALLOW"
 
 mount {
-  src: "/app"
+  src: "/srv"
   dst: "/"
   is_bind: true
   nosuid: true
   nodev: true
 }
 
-hostname: "challenge"
+hostname: "app"
 cwd: "/app"
 exec_bin {
-  path: "/app/challenge"
+  path: "/app/run"
 }
 EOF
 

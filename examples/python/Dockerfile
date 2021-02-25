@@ -4,7 +4,7 @@ RUN pip install progress --no-cache-dir
 
 FROM redpwn/jail
 
-COPY --from=app / /app
-COPY multiply.py /app/app/challenge
+COPY --from=app / /srv
+COPY multiply.py /srv/app/run
 
 ENV JAIL_MEM 20971520
