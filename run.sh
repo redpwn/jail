@@ -61,6 +61,8 @@ exec_bin {
 }
 EOF
 
+# Ignore shellcheck not being able to find the sourced file
+# shellcheck disable=SC1091
 [ -e /jail/hook.sh ] && . /jail/hook.sh
 
 exec setuidgid nsjail setpriv --inh-caps -chown,-setuid,-setgid,-sys_admin,-setpcap /jail/nsjail -C $nsjail_cfg
