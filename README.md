@@ -46,5 +46,5 @@ Name|Default|Description
 `JAIL_MEM`|5242880|Maximum memory bytes per connection
 `JAIL_CPU`|100|Maximum CPU milliseconds per wall second per connection
 
-If it exists, `/jail/hook.sh` is executed before the jail starts.
+If it exists, `/jail/hook.sh` is sourced before the jail starts.
 Use this script to configure nsjail options or the execution environment.

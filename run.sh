@@ -2,12 +2,12 @@
 
 set -eu
 
+cgroup_root=/jail/cgroup
+nsjail_cfg=/tmp/nsjail.cfg
+
 mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime tmpfs /tmp
 
 [ -d /srv/dev ] && mount --bind /jail/dev /srv/dev
-
-cgroup_root=/jail/cgroup
-nsjail_cfg=/tmp/nsjail.cfg
 
 mount_cgroup() {
   mount -t cgroup -o "$1,rw,nosuid,nodev,noexec,relatime" cgroup "$cgroup_root/$2" || return 1
@@ -37,8 +37,7 @@ cgroup_mem_mount: "$cgroup_root/memory"
 cgroup_mem_parent: "$(mount_cgroup memory memory)"
 cgroup_cpu_ms_per_sec: ${JAIL_CPU:-100}
 cgroup_cpu_mount: "$cgroup_root/cpu"
-cgroup_cpu_parent: "$(mount_cgroup cpu cpu || mount_cgroup cpu,cpuacct cpu)"
-max_cpus: 1
+cgroup_cpu_parent: "$(mount_cgroup cpu,cpuacct cpu || mount_cgroup cpu cpu)"
 
 seccomp_string: "KILL {"
 seccomp_string: "  clone { (clone_flags & 0x7e020000) != 0 },"
