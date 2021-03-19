@@ -1,5 +1,5 @@
 {
-  "defaultAction": "SCMP_ACT_KILL",
+  "defaultAction": "SCMP_ACT_ERRNO",
   "archMap": [
     {
       "architecture": "SCMP_ARCH_X86_64",
