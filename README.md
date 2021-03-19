@@ -33,13 +33,15 @@ The shell example [`docker-compose.yml`](https://github.com/redpwn/jail/blob/mas
 Jails are not compatible with SELinux.
 ## Configuration Reference
 
-To configure a limit, [use `ENV`](https://docs.docker.com/engine/reference/builder/#env).
+`/srv` outside the jail is mounted to `/` inside the jail.
+Inside each jail, `/app/run` is executed with a working directory of `/app`.
 
+To configure a limit, [use `ENV`](https://docs.docker.com/engine/reference/builder/#env).
 To remove a limit, set its value to `0`.
 
 Name|Default|Description
 -|-|-
-`JAIL_TIME`|30|Maximum wall time per connection
+`JAIL_TIME`|30|Maximum wall seconds per connection
 `JAIL_CONNS`|0|Maximum concurrent connections across all IPs
 `JAIL_CONNS_PER_IP`|0|Maximum concurrent connections for each IP
 `JAIL_PIDS`|5|Maximum PIDs per connection
