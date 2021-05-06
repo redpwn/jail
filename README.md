@@ -53,3 +53,5 @@ Name|Default|Description
 
 If it exists, `/jail/hook.sh` is sourced before the jail starts.
 Use this script to configure nsjail options or the execution environment.
+
+If `/srv/dev` exists, `/dev/null`, `/dev/zero`, and `/dev/urandom` are available inside the jail.

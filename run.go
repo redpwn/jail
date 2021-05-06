@@ -198,7 +198,7 @@ func runNsjail() {
 	if err := unix.Capset(capHeader, &capData[0]); err != nil {
 		panic(fmt.Errorf("capset: %w", err))
 	}
-	if err := unix.Exec("/jail/nsjail", []string{"nsjail", "-C", nsjailCfgPath}, []string{}); err != nil {
+	if err := unix.Exec("/jail/nsjail", []string{"nsjail", "-C", nsjailCfgPath}, os.Environ()); err != nil {
 		panic(fmt.Errorf("exec nsjail: %w", err))
 	}
 }
