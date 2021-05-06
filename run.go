@@ -57,11 +57,12 @@ func readCgroup() *cgroupInfo {
 			Controllers: names,
 			Parent:      parts[2] + "/NSJAIL",
 		}
-		if names == "pids" {
+		switch names {
+		case "pids":
 			info.Pids = entry
-		} else if names == "memory" {
+		case "memory":
 			info.Mem = entry
-		} else if names == "cpu" || names == "cpu,cpuacct" {
+		case "cpu", "cpu,cpuacct":
 			info.Cpu = entry
 		}
 	}

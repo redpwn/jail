@@ -1,13 +1,23 @@
 name: CI
 on:
   push:
-    branches: [master]
+    branches:
+      - master
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.39.0
   publish:
     runs-on: ubuntu-20.04
     if: github.ref == 'refs/heads/master'
+    needs:
+      - lint
     steps:
       - uses: actions/checkout@v2
       - uses: docker/setup-buildx-action@v1
