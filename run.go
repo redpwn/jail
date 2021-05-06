@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"golang.org/x/sys/unix"
 	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -13,6 +15,7 @@ import (
 const (
 	cgroupRootPath = "/jail/cgroup"
 	nsjailCfgPath  = "/tmp/nsjail.cfg"
+	hookPath       = "/jail/hook.sh"
 	mountFlags     = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
 	nsjailId       = 1000
 )
@@ -37,7 +40,6 @@ type jailConfig struct {
 	Mem        int
 	Cpu        int
 	Cgroup     cgroupInfo
-	Extra      string
 }
 
 func readCgroup() *cgroupInfo {
@@ -164,23 +166,22 @@ func writeConfig(cfg *jailConfig) {
 		exec_bin {
 			path: "/app/run"
 		}
-
-		{{.Extra}}
 	`)
 	if err != nil {
 		panic(err)
 	}
-	f, err := os.Create(nsjailCfgPath)
+	file, err := os.Create(nsjailCfgPath)
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
-	if err := tmpl.Execute(f, cfg); err != nil {
+	defer file.Close()
+	if err := tmpl.Execute(file, cfg); err != nil {
 		panic(err)
 	}
 }
 
 func runNsjail() {
+	runtime.LockOSThread()
 	if err := unix.Setresgid(nsjailId, nsjailId, nsjailId); err != nil {
 		panic(fmt.Errorf("setresgid nsjail: %w", err))
 	}
@@ -191,8 +192,9 @@ func runNsjail() {
 		panic(fmt.Errorf("setresuid nsjail: %w", err))
 	}
 	capHeader := &unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}
-	capData := &unix.CapUserData{}
-	if err := unix.Capset(capHeader, capData); err != nil {
+	// https://github.com/golang/go/issues/44312
+	capData := [2]unix.CapUserData{}
+	if err := unix.Capset(capHeader, &capData[0]); err != nil {
 		panic(fmt.Errorf("capset: %w", err))
 	}
 	if err := unix.Exec("/jail/nsjail", []string{"nsjail", "-C", nsjailCfgPath}, []string{}); err != nil {
@@ -227,12 +229,21 @@ func mountDev() {
 	}
 }
 
-func readExtra() string {
-	data, err := os.ReadFile("/jail/extra.cfg")
-	if err != nil {
-		return ""
+func runHook() {
+	if _, err := os.Stat(hookPath); os.IsNotExist(err) {
+		return
 	}
-	return string(data)
+	cmd := exec.Command("/bin/sh", hookPath)
+	cmd.Env = append(
+		os.Environ(),
+		"cgroup_root="+cgroupRootPath,
+		"nsjail_cfg="+nsjailCfgPath,
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		panic(fmt.Errorf("exec hook: %w", err))
+	}
 }
 
 func main() {
@@ -253,8 +264,8 @@ func main() {
 		Pids:       readEnvInt("JAIL_PIDS", 5),
 		Mem:        readEnvInt("JAIL_MEM", 5242880),
 		Cpu:        readEnvInt("JAIL_CPU", 100),
-		Extra:      readExtra(),
 		Cgroup:     *info,
 	})
+	runHook()
 	runNsjail()
 }
