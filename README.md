@@ -23,14 +23,17 @@ For a Python example with environment configuration, [see `examples/python`](htt
 
 ## Runtime Reference
 
+The container listens on port 5000 for incoming TCP connections.
+
 Jails require some container security options.
-The shell example [`docker-compose.yml`](https://github.com/redpwn/jail/blob/master/examples/shell/docker-compose.yml) specifies these options.
+The example [`docker-compose.yml`](https://github.com/redpwn/jail/blob/master/examples/shell/docker-compose.yml) specifies these options.
 
 * AppArmor: `unconfined`
 * [seccomp: `seccomp.json`](https://github.com/redpwn/jail/blob/master/seccomp.json)
-* Capabilities: `chown`, `setuid`, `setgid`, `sys_admin`, `setpcap`
+* Capabilities: `chown`, `setuid`, `setgid`, `sys_admin`
 
 Jails are not compatible with SELinux.
+
 ## Configuration Reference
 
 `/srv` outside the jail is mounted to `/` inside the jail.
@@ -50,3 +53,5 @@ Name|Default|Description
 
 If it exists, `/jail/hook.sh` is sourced before the jail starts.
 Use this script to configure nsjail options or the execution environment.
+
+If `/srv/dev` exists, `/dev/null`, `/dev/zero`, and `/dev/urandom` are available inside the jail.
