@@ -12,7 +12,6 @@ services:
       - setuid
       - setgid
       - sys_admin
-      - setpcap
     security_opt:
       - apparmor=unconfined
       - seccomp=../../seccomp.json
