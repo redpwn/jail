@@ -69,7 +69,7 @@ func readCgroup() *cgroupInfo {
 	return info
 }
 
-func mountCgroup1(name string, entry *cgroup1Entry) error {
+func mountCgroup1(name string, entry *cgroup1Entry) {
 	dest := cgroupRootPath + "/" + name
 	if err := unix.Mount("none", dest, "cgroup", mountFlags, entry.Controllers); err != nil {
 		panic(fmt.Errorf("mount cgroup1 %s to %s: %w", entry.Controllers, dest, err))
@@ -84,7 +84,6 @@ func mountCgroup1(name string, entry *cgroup1Entry) error {
 	if err := os.Chown(delegated, nsjailId, nsjailId); err != nil {
 		panic(err)
 	}
-	return nil
 }
 
 func mountCgroup2() {
