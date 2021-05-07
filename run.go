@@ -222,10 +222,10 @@ func mountTmp() {
 }
 
 func mountDev() {
-	if data, _ := os.Stat("/srv/dev"); !data.IsDir() {
+	if _, err := os.Stat("/srv/dev"); os.IsNotExist(err) {
 		return
 	}
-	if err := unix.Mount("/jail/dev", "/srv/dev", "bind", mountFlags|unix.MS_BIND, ""); err != nil {
+	if err := unix.Mount("/jail/dev", "/srv/dev", "none", mountFlags|unix.MS_BIND, ""); err != nil {
 		panic(fmt.Errorf("mount dev: %w", err))
 	}
 }
