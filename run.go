@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/docker/go-units"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -33,12 +34,12 @@ type cgroupInfo struct {
 }
 
 type jailConfig struct {
-	Time       int
-	Conns      int
-	ConnsPerIp int
-	Pids       int
-	Mem        int
-	Cpu        int
+	Time       int64
+	Conns      int64
+	ConnsPerIp int64
+	Pids       int64
+	Mem        int64
+	Cpu        int64
 	Cgroup     cgroupInfo
 }
 
@@ -183,6 +184,7 @@ func writeConfig(cfg *jailConfig) {
 
 func runNsjail() {
 	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := unix.Setresgid(nsjailId, nsjailId, nsjailId); err != nil {
 		panic(fmt.Errorf("setresgid nsjail: %w", err))
 	}
@@ -203,16 +205,21 @@ func runNsjail() {
 	}
 }
 
-func readEnvInt(key string, fallback int) int {
+func readEnv(key string, convert func(string) (int64, error), fallback string) int64 {
 	env := os.Getenv(key)
 	if env == "" {
-		return fallback
+		env = fallback
 	}
-	val, err := strconv.Atoi(env)
+	val, err := convert(env)
 	if err != nil {
 		panic(fmt.Errorf("read env %s: %w", key, err))
 	}
 	return val
+}
+
+func convertNum(s string) (int64, error) {
+	val, err := strconv.Atoi(s)
+	return int64(val), err
 }
 
 func mountTmp() {
@@ -250,22 +257,22 @@ func runHook() {
 func main() {
 	mountTmp()
 	mountDev()
-	info := readCgroup()
-	if info.Cgroup2 {
+	cgroup := readCgroup()
+	if cgroup.Cgroup2 {
 		mountCgroup2()
 	} else {
-		mountCgroup1("pids", info.Pids)
-		mountCgroup1("mem", info.Mem)
-		mountCgroup1("cpu", info.Cpu)
+		mountCgroup1("pids", cgroup.Pids)
+		mountCgroup1("mem", cgroup.Mem)
+		mountCgroup1("cpu", cgroup.Cpu)
 	}
 	writeConfig(&jailConfig{
-		Time:       readEnvInt("JAIL_TIME", 30),
-		Conns:      readEnvInt("JAIL_CONNS", 0),
-		ConnsPerIp: readEnvInt("JAIL_CONNS_PER_IP", 0),
-		Pids:       readEnvInt("JAIL_PIDS", 5),
-		Mem:        readEnvInt("JAIL_MEM", 5242880),
-		Cpu:        readEnvInt("JAIL_CPU", 100),
-		Cgroup:     *info,
+		Time:       readEnv("JAIL_TIME", convertNum, "30"),
+		Conns:      readEnv("JAIL_CONNS", convertNum, "0"),
+		ConnsPerIp: readEnv("JAIL_CONNS_PER_IP", convertNum, "0"),
+		Pids:       readEnv("JAIL_PIDS", convertNum, "5"),
+		Mem:        readEnv("JAIL_MEM", units.RAMInBytes, "5M"),
+		Cpu:        readEnv("JAIL_CPU", convertNum, "100"),
+		Cgroup:     *cgroup,
 	})
 	runHook()
 	runNsjail()

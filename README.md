@@ -48,10 +48,10 @@ Name|Default|Description
 `JAIL_CONNS`|0|Maximum concurrent connections across all IPs
 `JAIL_CONNS_PER_IP`|0|Maximum concurrent connections for each IP
 `JAIL_PIDS`|5|Maximum PIDs per connection
-`JAIL_MEM`|5242880|Maximum memory bytes per connection
+`JAIL_MEM`|5M|Maximum memory per connection
 `JAIL_CPU`|100|Maximum CPU milliseconds per wall second per connection
 
-If it exists, `/jail/hook.sh` is sourced before the jail starts.
+If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
 
 If `/srv/dev` exists, `/dev/null`, `/dev/zero`, and `/dev/urandom` are available inside the jail.
