@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	cgroupRootPath = "/jail/cgroup"
-	nsjailCfgPath  = "/tmp/nsjail.cfg"
-	hookPath       = "/jail/hook.sh"
-	mountFlags     = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
-	nsjailId       = 1000
+	cgroupPath    = "/jail/cgroup"
+	nsjailCfgPath = "/tmp/nsjail.cfg"
+	hookPath      = "/jail/hook.sh"
+	mountFlags    = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
+	nsjailId      = 1000
 )
 
 type cgroup1Entry struct {
@@ -50,20 +50,19 @@ type jailConfig struct {
 
 func readCgroup() *cgroupInfo {
 	info := &cgroupInfo{}
-	file, err := os.Open("/proc/self/cgroup")
+	f, err := os.Open("/proc/self/cgroup")
 	if err != nil {
 		panic(fmt.Errorf("read cgroup info: %w", err))
 	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		parts := strings.SplitN(scanner.Text(), ":", 3)
-		names := parts[1]
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		parts := strings.SplitN(s.Text(), ":", 3)
 		entry := &cgroup1Entry{
-			controllers: names,
+			controllers: parts[1],
 			parent:      parts[2] + "/NSJAIL",
 		}
-		switch names {
+		switch parts[1] {
 		case "pids":
 			info.pids = entry
 		case "memory":
@@ -79,7 +78,7 @@ func readCgroup() *cgroupInfo {
 }
 
 func mountCgroup1(name string, entry *cgroup1Entry) {
-	dest := cgroupRootPath + "/" + name
+	dest := cgroupPath + "/" + name
 	if err := unix.Mount("none", dest, "cgroup", mountFlags, entry.controllers); err != nil {
 		panic(fmt.Errorf("mount cgroup1 %s to %s: %w", entry.controllers, dest, err))
 	}
@@ -96,7 +95,7 @@ func mountCgroup1(name string, entry *cgroup1Entry) {
 }
 
 func mountCgroup2() {
-	dest := cgroupRootPath + "/unified"
+	dest := cgroupPath + "/unified"
 	if err := unix.Mount("none", dest, "cgroup2", mountFlags, ""); err != nil {
 		panic(fmt.Errorf("mount cgroup2 to %s: %w", dest, err))
 	}
@@ -126,7 +125,7 @@ func mountCgroup2() {
 }
 
 func writeConfig(cfg *jailConfig) {
-	m := nsjail.NsJailConfig{
+	m := &nsjail.NsJailConfig{
 		Mode:             nsjail.Mode_LISTEN.Enum(),
 		Port:             proto.Uint32(5000),
 		TimeLimit:        &cfg.time,
@@ -158,16 +157,16 @@ func writeConfig(cfg *jailConfig) {
 	}
 	if cfg.cgroup.cgroup2 {
 		m.UseCgroupv2 = proto.Bool(true)
-		m.Cgroupv2Mount = proto.String("/jail/cgroup/unified/run")
+		m.Cgroupv2Mount = proto.String(cgroupPath + "/unified/run")
 	} else {
-		m.CgroupPidsMount = proto.String("/jail/cgroup/pids")
+		m.CgroupPidsMount = proto.String(cgroupPath + "/pids")
 		m.CgroupPidsParent = &cfg.cgroup.pids.parent
-		m.CgroupMemMount = proto.String("/jail/cgroup/mem")
+		m.CgroupMemMount = proto.String(cgroupPath + "/mem")
 		m.CgroupMemParent = &cfg.cgroup.mem.parent
-		m.CgroupCpuMount = proto.String("/jail/cgroup/cpu")
+		m.CgroupCpuMount = proto.String(cgroupPath + "/cpu")
 		m.CgroupCpuParent = &cfg.cgroup.cpu.parent
 	}
-	c, err := prototext.Marshal(&m)
+	c, err := prototext.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
@@ -243,7 +242,7 @@ func runHook() {
 	cmd := exec.Command("/bin/sh", hookPath)
 	cmd.Env = append(
 		os.Environ(),
-		"cgroup_root="+cgroupRootPath,
+		"cgroup_root="+cgroupPath,
 		"nsjail_cfg="+nsjailCfgPath,
 	)
 	cmd.Stdout = os.Stdout
