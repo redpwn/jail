@@ -42,8 +42,8 @@ type jailConfig struct {
 	time       uint32
 	conns      uint32
 	connsPerIp uint32
-	pids       uint32
-	mem        uint32
+	pids       uint64
+	mem        uint64
 	cpu        uint32
 	cgroup     cgroupInfo
 }
@@ -126,15 +126,18 @@ func mountCgroup2() {
 
 func writeConfig(cfg *jailConfig) {
 	m := &nsjail.NsJailConfig{
-		Mode:             nsjail.Mode_LISTEN.Enum(),
-		Port:             proto.Uint32(5000),
-		TimeLimit:        &cfg.time,
-		MaxConns:         &cfg.conns,
-		MaxConnsPerIp:    &cfg.connsPerIp,
-		RlimitAsType:     nsjail.RLimit_HARD.Enum(),
-		RlimitCpuType:    nsjail.RLimit_HARD.Enum(),
-		RlimitFsizeType:  nsjail.RLimit_HARD.Enum(),
-		RlimitNofileType: nsjail.RLimit_HARD.Enum(),
+		Mode:              nsjail.Mode_LISTEN.Enum(),
+		Port:              proto.Uint32(5000),
+		TimeLimit:         &cfg.time,
+		MaxConns:          &cfg.conns,
+		MaxConnsPerIp:     &cfg.connsPerIp,
+		RlimitAsType:      nsjail.RLimit_HARD.Enum(),
+		RlimitCpuType:     nsjail.RLimit_HARD.Enum(),
+		RlimitFsizeType:   nsjail.RLimit_HARD.Enum(),
+		RlimitNofileType:  nsjail.RLimit_HARD.Enum(),
+		CgroupPidsMax:     &cfg.pids,
+		CgroupMemMax:      &cfg.mem,
+		CgroupCpuMsPerSec: &cfg.cpu,
 		SeccompString: []string{`
 			ERRNO(1) {
 				clone { (clone_flags & 0x7e020000) != 0 },
@@ -198,7 +201,7 @@ func runNsjail() {
 	}
 }
 
-func readEnv(key string, convert func(string) (uint32, error), fallback string) uint32 {
+func readEnv(key string, convert func(string) (uint64, error), fallback string) uint64 {
 	env := os.Getenv(key)
 	if env == "" {
 		env = fallback
@@ -210,14 +213,14 @@ func readEnv(key string, convert func(string) (uint32, error), fallback string) 
 	return val
 }
 
-func convertNum(s string) (uint32, error) {
+func convertNum(s string) (uint64, error) {
 	val, err := strconv.Atoi(s)
-	return uint32(val), err
+	return uint64(val), err
 }
 
-func convertSize(s string) (uint32, error) {
+func convertSize(s string) (uint64, error) {
 	val, err := units.RAMInBytes(s)
-	return uint32(val), err
+	return uint64(val), err
 }
 
 func mountTmp() {
@@ -264,12 +267,12 @@ func main() {
 		mountCgroup1("cpu", cgroup.cpu)
 	}
 	writeConfig(&jailConfig{
-		time:       readEnv("JAIL_TIME", convertNum, "30"),
-		conns:      readEnv("JAIL_CONNS", convertNum, "0"),
-		connsPerIp: readEnv("JAIL_CONNS_PER_IP", convertNum, "0"),
+		time:       uint32(readEnv("JAIL_TIME", convertNum, "30")),
+		conns:      uint32(readEnv("JAIL_CONNS", convertNum, "0")),
+		connsPerIp: uint32(readEnv("JAIL_CONNS_PER_IP", convertNum, "0")),
 		pids:       readEnv("JAIL_PIDS", convertNum, "5"),
 		mem:        readEnv("JAIL_MEM", convertSize, "5M"),
-		cpu:        readEnv("JAIL_CPU", convertNum, "100"),
+		cpu:        uint32(readEnv("JAIL_CPU", convertNum, "100")),
 		cgroup:     *cgroup,
 	})
 	runHook()
