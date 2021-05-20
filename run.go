@@ -1,7 +1,7 @@
 package main
 
 //go:generate mkdir -p gen
-//go:generate protoc -I../nsjail --go_out gen --go_opt Mconfig.proto=/nsjail config.proto
+//go:generate protoc -Insjail --go_out gen --go_opt Mconfig.proto=/nsjail config.proto
 
 import (
 	"bufio"
