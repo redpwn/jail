@@ -1,16 +1,21 @@
 package main
 
+//go:generate mkdir -p gen
+//go:generate protoc -I../nsjail --go_out gen --go_opt Mconfig.proto=/nsjail config.proto
+
 import (
 	"bufio"
 	"fmt"
 	"github.com/docker/go-units"
+	"github.com/redpwn/jail/gen/nsjail"
 	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
-	"text/template"
 )
 
 const (
@@ -22,25 +27,25 @@ const (
 )
 
 type cgroup1Entry struct {
-	Controllers string
-	Parent      string
+	controllers string
+	parent      string
 }
 
 type cgroupInfo struct {
-	Pids    *cgroup1Entry
-	Mem     *cgroup1Entry
-	Cpu     *cgroup1Entry
-	Cgroup2 bool
+	pids    *cgroup1Entry
+	mem     *cgroup1Entry
+	cpu     *cgroup1Entry
+	cgroup2 bool
 }
 
 type jailConfig struct {
-	Time       int64
-	Conns      int64
-	ConnsPerIp int64
-	Pids       int64
-	Mem        int64
-	Cpu        int64
-	Cgroup     cgroupInfo
+	time       uint32
+	conns      uint32
+	connsPerIp uint32
+	pids       uint32
+	mem        uint32
+	cpu        uint32
+	cgroup     cgroupInfo
 }
 
 func readCgroup() *cgroupInfo {
@@ -55,33 +60,33 @@ func readCgroup() *cgroupInfo {
 		parts := strings.SplitN(scanner.Text(), ":", 3)
 		names := parts[1]
 		entry := &cgroup1Entry{
-			Controllers: names,
-			Parent:      parts[2] + "/NSJAIL",
+			controllers: names,
+			parent:      parts[2] + "/NSJAIL",
 		}
 		switch names {
 		case "pids":
-			info.Pids = entry
+			info.pids = entry
 		case "memory":
-			info.Mem = entry
+			info.mem = entry
 		case "cpu", "cpu,cpuacct":
-			info.Cpu = entry
+			info.cpu = entry
 		}
 	}
-	if info.Pids == nil && info.Mem == nil && info.Cpu == nil {
-		info.Cgroup2 = true
+	if info.pids == nil && info.mem == nil && info.cpu == nil {
+		info.cgroup2 = true
 	}
 	return info
 }
 
 func mountCgroup1(name string, entry *cgroup1Entry) {
 	dest := cgroupRootPath + "/" + name
-	if err := unix.Mount("none", dest, "cgroup", mountFlags, entry.Controllers); err != nil {
-		panic(fmt.Errorf("mount cgroup1 %s to %s: %w", entry.Controllers, dest, err))
+	if err := unix.Mount("none", dest, "cgroup", mountFlags, entry.controllers); err != nil {
+		panic(fmt.Errorf("mount cgroup1 %s to %s: %w", entry.controllers, dest, err))
 	}
 	if err := os.Chmod(dest, 0755); err != nil {
 		panic(err)
 	}
-	delegated := dest + "/" + entry.Parent
+	delegated := dest + "/" + entry.parent
 	if err := os.Mkdir(delegated, 0755); err != nil {
 		panic(err)
 	}
@@ -121,63 +126,52 @@ func mountCgroup2() {
 }
 
 func writeConfig(cfg *jailConfig) {
-	tmpl, err := template.New("nsjail").Parse(`
-		mode: LISTEN
-		port: 5000
-		time_limit: {{.Time}}
-		max_conns: {{.Conns}}
-		max_conns_per_ip: {{.ConnsPerIp}}
-
-		rlimit_as_type: HARD
-		rlimit_cpu_type: HARD
-		rlimit_fsize_type: HARD
-		rlimit_nofile_type: HARD
-
-		cgroup_pids_max: {{.Pids}}
-		cgroup_mem_max: {{.Mem}}
-		cgroup_cpu_ms_per_sec: {{.Cpu}}
-
-		{{if .Cgroup.Cgroup2}}
-			use_cgroupv2: true
-			cgroupv2_mount: "/jail/cgroup/unified/run"
-		{{else}}
-			cgroup_pids_mount: "/jail/cgroup/pids"
-			cgroup_pids_parent: "{{.Cgroup.Pids.Parent}}"
-			cgroup_mem_mount: "/jail/cgroup/mem"
-			cgroup_mem_parent: "{{.Cgroup.Mem.Parent}}"
-			cgroup_cpu_mount: "/jail/cgroup/cpu"
-			cgroup_cpu_parent: "{{.Cgroup.Cpu.Parent}}"
-		{{end}}
-
-		seccomp_string: "ERRNO(1) {"
-		seccomp_string: "  clone { (clone_flags & 0x7e020000) != 0 },"
-		seccomp_string: "  mount, sethostname, umount, pivot_root"
-		seccomp_string: "}"
-		seccomp_string: "DEFAULT ALLOW"
-
-		mount {
-			src: "/srv"
-			dst: "/"
-			is_bind: true
-			nosuid: true
-			nodev: true
-		}
-
-		hostname: "app"
-		cwd: "/app"
-		exec_bin {
-			path: "/app/run"
-		}
-	`)
+	m := nsjail.NsJailConfig{
+		Mode:             nsjail.Mode_LISTEN.Enum(),
+		Port:             proto.Uint32(5000),
+		TimeLimit:        &cfg.time,
+		MaxConns:         &cfg.conns,
+		MaxConnsPerIp:    &cfg.connsPerIp,
+		RlimitAsType:     nsjail.RLimit_HARD.Enum(),
+		RlimitCpuType:    nsjail.RLimit_HARD.Enum(),
+		RlimitFsizeType:  nsjail.RLimit_HARD.Enum(),
+		RlimitNofileType: nsjail.RLimit_HARD.Enum(),
+		SeccompString: []string{`
+			ERRNO(1) {
+				clone { (clone_flags & 0x7e020000) != 0 },
+				mount, sethostname, umount, pivot_root
+			}
+			DEFAULT ALLOW
+		`},
+		Mount: []*nsjail.MountPt{{
+			Src:    proto.String("/srv"),
+			Dst:    proto.String("/"),
+			IsBind: proto.Bool(true),
+			Nosuid: proto.Bool(true),
+			Nodev:  proto.Bool(true),
+		}},
+		Hostname: proto.String("app"),
+		Cwd:      proto.String("/app"),
+		ExecBin: &nsjail.Exe{
+			Path: proto.String("/app/run"),
+		},
+	}
+	if cfg.cgroup.cgroup2 {
+		m.UseCgroupv2 = proto.Bool(true)
+		m.Cgroupv2Mount = proto.String("/jail/cgroup/unified/run")
+	} else {
+		m.CgroupPidsMount = proto.String("/jail/cgroup/pids")
+		m.CgroupPidsParent = &cfg.cgroup.pids.parent
+		m.CgroupMemMount = proto.String("/jail/cgroup/mem")
+		m.CgroupMemParent = &cfg.cgroup.mem.parent
+		m.CgroupCpuMount = proto.String("/jail/cgroup/cpu")
+		m.CgroupCpuParent = &cfg.cgroup.cpu.parent
+	}
+	c, err := prototext.Marshal(&m)
 	if err != nil {
 		panic(err)
 	}
-	file, err := os.Create(nsjailCfgPath)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	if err := tmpl.Execute(file, cfg); err != nil {
+	if err := os.WriteFile(nsjailCfgPath, c, 0644); err != nil {
 		panic(err)
 	}
 }
@@ -205,7 +199,7 @@ func runNsjail() {
 	}
 }
 
-func readEnv(key string, convert func(string) (int64, error), fallback string) int64 {
+func readEnv(key string, convert func(string) (uint32, error), fallback string) uint32 {
 	env := os.Getenv(key)
 	if env == "" {
 		env = fallback
@@ -217,9 +211,14 @@ func readEnv(key string, convert func(string) (int64, error), fallback string) i
 	return val
 }
 
-func convertNum(s string) (int64, error) {
+func convertNum(s string) (uint32, error) {
 	val, err := strconv.Atoi(s)
-	return int64(val), err
+	return uint32(val), err
+}
+
+func convertSize(s string) (uint32, error) {
+	val, err := units.RAMInBytes(s)
+	return uint32(val), err
 }
 
 func mountTmp() {
@@ -258,21 +257,21 @@ func main() {
 	mountTmp()
 	mountDev()
 	cgroup := readCgroup()
-	if cgroup.Cgroup2 {
+	if cgroup.cgroup2 {
 		mountCgroup2()
 	} else {
-		mountCgroup1("pids", cgroup.Pids)
-		mountCgroup1("mem", cgroup.Mem)
-		mountCgroup1("cpu", cgroup.Cpu)
+		mountCgroup1("pids", cgroup.pids)
+		mountCgroup1("mem", cgroup.mem)
+		mountCgroup1("cpu", cgroup.cpu)
 	}
 	writeConfig(&jailConfig{
-		Time:       readEnv("JAIL_TIME", convertNum, "30"),
-		Conns:      readEnv("JAIL_CONNS", convertNum, "0"),
-		ConnsPerIp: readEnv("JAIL_CONNS_PER_IP", convertNum, "0"),
-		Pids:       readEnv("JAIL_PIDS", convertNum, "5"),
-		Mem:        readEnv("JAIL_MEM", units.RAMInBytes, "5M"),
-		Cpu:        readEnv("JAIL_CPU", convertNum, "100"),
-		Cgroup:     *cgroup,
+		time:       readEnv("JAIL_TIME", convertNum, "30"),
+		conns:      readEnv("JAIL_CONNS", convertNum, "0"),
+		connsPerIp: readEnv("JAIL_CONNS_PER_IP", convertNum, "0"),
+		pids:       readEnv("JAIL_PIDS", convertNum, "5"),
+		mem:        readEnv("JAIL_MEM", convertSize, "5M"),
+		cpu:        readEnv("JAIL_CPU", convertNum, "100"),
+		cgroup:     *cgroup,
 	})
 	runHook()
 	runNsjail()
