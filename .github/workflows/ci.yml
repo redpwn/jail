@@ -4,15 +4,24 @@ on:
     branches:
       - master
   pull_request:
-
 jobs:
   lint:
     runs-on: ubuntu-20.04
     steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.4
       - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: |
+          sudo apt-get install -y protobuf-compiler
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
+          go generate
       - uses: golangci/golangci-lint-action@v2
         with:
           version: v1.39.0
+          skip-go-installation: true
   publish:
     runs-on: ubuntu-20.04
     if: github.ref == 'refs/heads/master'
@@ -20,6 +29,8 @@ jobs:
       - lint
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: docker/setup-buildx-action@v1
       - uses: docker/login-action@v1
         with:
