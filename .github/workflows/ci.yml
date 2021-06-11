@@ -15,7 +15,7 @@ jobs:
         with:
           submodules: true
       - run: |
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler libseccomp-dev
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
           go generate
       - uses: golangci/golangci-lint-action@v2
