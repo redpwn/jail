@@ -50,6 +50,7 @@ Name|Default|Description
 `JAIL_PIDS`|5|Maximum PIDs per connection
 `JAIL_MEM`|5M|Maximum memory per connection
 `JAIL_CPU`|100|Maximum CPU milliseconds per wall second per connection
+`JAIL_PORT`|5000|Port for nsjail to bind to
 
 If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
