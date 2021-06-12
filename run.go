@@ -50,13 +50,15 @@ func (s *size) UnmarshalText(t []byte) error {
 }
 
 type jailConfig struct {
-	Time       uint32 `env:"JAIL_TIME" envDefault:"20"`
-	Conns      uint32 `env:"JAIL_CONNS"`
-	ConnsPerIp uint32 `env:"JAIL_CONNS_PER_IP"`
-	Pids       uint64 `env:"JAIL_PIDS" envDefault:"5"`
-	Mem        size   `env:"JAIL_MEM" envDefault:"5M"`
-	Cpu        uint32 `env:"JAIL_CPU" envDefault:"100"`
-	Port       uint32 `env:"JAIL_PORT" envDefault:"5000"`
+	Time       uint32   `env:"JAIL_TIME" envDefault:"20"`
+	Conns      uint32   `env:"JAIL_CONNS"`
+	ConnsPerIp uint32   `env:"JAIL_CONNS_PER_IP"`
+	Pids       uint64   `env:"JAIL_PIDS" envDefault:"5"`
+	Mem        size     `env:"JAIL_MEM" envDefault:"5M"`
+	Cpu        uint32   `env:"JAIL_CPU" envDefault:"100"`
+	Port       uint32   `env:"JAIL_PORT" envDefault:"5000"`
+	Syscalls   []string `env:"JAIL_SYSCALLS"`
+	ReadOnly   bool     `env:"JAIL_READ_ONLY" envDefault:"true"`
 	cgroup     cgroupInfo
 }
 
@@ -152,7 +154,8 @@ func writeConfig(cfg *jailConfig) error {
 		CgroupPidsMax:     &cfg.Pids,
 		CgroupMemMax:      proto.Uint64(uint64(cfg.Mem)),
 		CgroupCpuMsPerSec: &cfg.Cpu,
-		// kafel umount is umount2 https://github.com/google/kafel/blob/f67ddf5acf57fb7de1e25500cc266c1588ecf3f1/src/syscalls/amd64_syscalls.c#L2041-L2042
+		// kafel umount is umount2
+		// https://github.com/google/kafel/blob/f67ddf5acf57fb7de1e25500cc266c1588ecf3f1/src/syscalls/amd64_syscalls.c#L2041-L2046
 		SeccompString: []string{`
 			ERRNO(1) {
 				clone { (clone_flags & 0x7e020000) != 0 },
@@ -194,7 +197,7 @@ func writeConfig(cfg *jailConfig) error {
 	return nil
 }
 
-func initSeccomp() error {
+func initSeccomp(cfg *jailConfig) error {
 	arch, err := seccomp.GetNativeArch()
 	if err != nil {
 		return err
@@ -210,10 +213,16 @@ func initSeccomp() error {
 	if err := filter.AddArch(seccomp.ArchX86); err != nil {
 		return err
 	}
-	for _, name := range seccompSyscalls {
+	for i, name := range append(seccompSyscalls, cfg.Syscalls...) {
 		call, err := seccomp.GetSyscallFromName(name)
 		if err != nil {
-			// match runc behavior https://github.com/opencontainers/runc/blob/c61f6062547d20b80a07e9593e9617e115773b28/libcontainer/seccomp/seccomp_linux.go#L154-L159
+			// return error for invalid custom syscall names
+			if i >= len(seccompSyscalls) {
+				return err
+			}
+
+			// match runc behavior for builtin syscalls
+			// https://github.com/opencontainers/runc/blob/c61f6062547d20b80a07e9593e9617e115773b28/libcontainer/seccomp/seccomp_linux.go#L154-L159
 			continue
 		}
 		if err := filter.AddRule(call, seccomp.ActAllow); err != nil {
@@ -226,10 +235,10 @@ func initSeccomp() error {
 	return nil
 }
 
-func runNsjail() error {
+func runNsjail(cfg *jailConfig) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if err := initSeccomp(); err != nil {
+	if err := initSeccomp(cfg); err != nil {
 		return fmt.Errorf("init seccomp: %w", err)
 	}
 	if err := unix.Setresgid(nsjailId, nsjailId, nsjailId); err != nil {
@@ -315,8 +324,14 @@ func mountCgroup(info *cgroupInfo) error {
 }
 
 func run() error {
-	if err := remountRoot(); err != nil {
-		return err
+	cfg := &jailConfig{}
+	if err := env.Parse(cfg); err != nil {
+		return fmt.Errorf("parse env config: %w", err)
+	}
+	if cfg.ReadOnly {
+		if err := remountRoot(); err != nil {
+			return err
+		}
 	}
 	if err := mountTmp(); err != nil {
 		return err
@@ -328,12 +343,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	cfg.cgroup = *cgroup
 	if err := mountCgroup(cgroup); err != nil {
 		return fmt.Errorf("delegate cgroup: %w", err)
-	}
-	cfg := &jailConfig{cgroup: *cgroup}
-	if err := env.Parse(cfg); err != nil {
-		return fmt.Errorf("parse env config: %w", err)
 	}
 	if err := writeConfig(cfg); err != nil {
 		return err
@@ -341,7 +353,7 @@ func run() error {
 	if err := runHook(); err != nil {
 		return err
 	}
-	if err := runNsjail(); err != nil {
+	if err := runNsjail(cfg); err != nil {
 		return err
 	}
 	return nil
