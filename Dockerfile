@@ -4,13 +4,13 @@ RUN apt-get update && apt-get install -y curl autoconf bison flex gcc g++ git li
 COPY nsjail .
 RUN make
 
-FROM golang:1.16.4-buster AS run
+FROM golang:1.16.5-buster AS run
 WORKDIR /app
-RUN apt-get update && apt-get install -y protobuf-compiler && go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
+RUN apt-get update && apt-get install -y protobuf-compiler libseccomp-dev && go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
 COPY go.mod go.sum .
 RUN go mod download
 COPY nsjail/config.proto nsjail/
-COPY run.go .
+COPY run.go seccomp.go .
 RUN go generate && go build -ldflags="-w -s"
 
 FROM busybox:1.32.1-glibc
@@ -19,6 +19,7 @@ RUN adduser -HDu 1000 nsjail && \
     mknod -m 666 /jail/dev/null c 1 3 && \
     mknod -m 666 /jail/dev/zero c 1 5 && \
     mknod -m 444 /jail/dev/urandom c 1 9
+COPY --from=run /usr/lib/x86_64-linux-gnu/libseccomp.so.2 /lib/
 COPY --from=nsjail /usr/lib/x86_64-linux-gnu/libprotobuf.so.17 \
     /usr/lib/x86_64-linux-gnu/libnl-route-3.so.200 \
     /lib/x86_64-linux-gnu/libnl-3.so.200 \
