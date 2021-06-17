@@ -336,7 +336,7 @@ func runConn(cfg *jailConfig, errCh chan error, c net.Conn) {
 	defer c.Close()
 	chal := pow.GenerateChallenge(cfg.Pow)
 	r := bufio.NewReader(c)
-	c.Write([]byte(fmt.Sprintf("proof of work: sh <(curl https://pwn.red/pow) %s\nsolution: ", chal)))
+	c.Write([]byte(fmt.Sprintf("proof of work: sh <(curl -sSf https://pwn.red/pow) %s\nsolution: ", chal)))
 	s, err := r.ReadString('\n')
 	if err != nil {
 		return
@@ -352,16 +352,16 @@ func runConn(cfg *jailConfig, errCh chan error, c net.Conn) {
 		return
 	}
 	defer d.Close()
-	ch := make(chan struct{})
+	eofCh := make(chan struct{})
 	go func() {
 		io.Copy(c, d)
-		ch <- struct{}{}
+		eofCh <- struct{}{}
 	}()
 	go func() {
 		io.Copy(d, c)
-		ch <- struct{}{}
+		eofCh <- struct{}{}
 	}()
-	<-ch
+	<-eofCh
 }
 
 func runServer(errCh chan error, cfg *jailConfig) {
@@ -381,13 +381,13 @@ func runServer(errCh chan error, cfg *jailConfig) {
 	}
 }
 
-func runNsjailChild(ch chan error) {
+func runNsjailChild(errCh chan error) {
 	cmd := exec.Command("/jail/run", "nsjail")
 	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		ch <- fmt.Errorf("run nsjail child: %w", err)
+		errCh <- fmt.Errorf("run nsjail child: %w", err)
 	}
 }
 
