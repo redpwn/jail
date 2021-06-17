@@ -50,7 +50,8 @@ Name|Default|Description
 `JAIL_PIDS`|5|Maximum PIDs per connection
 `JAIL_MEM`|5M|Maximum memory per connection
 `JAIL_CPU`|100|Maximum CPU milliseconds per wall second per connection
-`JAIL_PORT`|5000|Port for nsjail to bind to
+`JAIL_POW`|0|Proof of work difficulty
+`JAIL_PORT`|5000|Port number to bind to
 `JAIL_SYSCALLS`|*(none)*|Additional allowed syscall names separated by `,`
 `JAIL_READ_ONLY`|true|Whether to remount the root file system as read only
 

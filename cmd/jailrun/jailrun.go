@@ -1,12 +1,15 @@
 package main
 
-//go:generate mkdir -p proto
-//go:generate protoc -Insjail --go_out proto --go_opt Mconfig.proto=/nsjail config.proto
+//go:generate mkdir -p ../../proto
+//go:generate protoc -I../../nsjail --go_out ../../proto --go_opt Mconfig.proto=/nsjail config.proto
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"net"
 	"os"
 	"os/exec"
 	"runtime"
@@ -14,6 +17,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/docker/go-units"
+	"github.com/redpwn/jail/pow"
 	"github.com/redpwn/jail/proto/nsjail"
 	seccomp "github.com/seccomp/libseccomp-golang"
 	"golang.org/x/sys/unix"
@@ -59,7 +63,8 @@ type jailConfig struct {
 	Port       uint32   `env:"JAIL_PORT" envDefault:"5000"`
 	Syscalls   []string `env:"JAIL_SYSCALLS"`
 	ReadOnly   bool     `env:"JAIL_READ_ONLY" envDefault:"true"`
-	cgroup     cgroupInfo
+	Pow        uint32   `env:"JAIL_POW"`
+	cgroup     *cgroupInfo
 }
 
 func readCgroup() (*cgroupInfo, error) {
@@ -186,6 +191,10 @@ func writeConfig(cfg *jailConfig) error {
 		msg.CgroupMemParent = &cfg.cgroup.mem.parent
 		msg.CgroupCpuMount = proto.String(cgroupPath + "/cpu")
 		msg.CgroupCpuParent = &cfg.cgroup.cpu.parent
+	}
+	if cfg.Pow != 0 {
+		msg.Bindhost = proto.String("127.0.0.1")
+		msg.Port = proto.Uint32(*msg.Port + 1)
 	}
 	content, err := prototext.Marshal(msg)
 	if err != nil {
@@ -323,10 +332,72 @@ func mountCgroup(info *cgroupInfo) error {
 	return nil
 }
 
+func runConn(cfg *jailConfig, errCh chan error, c net.Conn) {
+	defer c.Close()
+	chal := pow.GenerateChallenge(cfg.Pow)
+	r := bufio.NewReader(c)
+	c.Write([]byte(fmt.Sprintf("proof of work: sh <(curl https://pwn.red/pow) %s\nsolution: ", chal)))
+	s, err := r.ReadString('\n')
+	if err != nil {
+		return
+	}
+	correct, err := chal.Check(s)
+	if err != nil || !correct {
+		c.Write([]byte("incorrect proof of work\n"))
+		return
+	}
+	d, err := net.Dial("tcp", fmt.Sprintf(":%d", cfg.Port+1))
+	if err != nil {
+		errCh <- err
+		return
+	}
+	defer d.Close()
+	ch := make(chan struct{})
+	go func() {
+		io.Copy(c, d)
+		ch <- struct{}{}
+	}()
+	go func() {
+		io.Copy(d, c)
+		ch <- struct{}{}
+	}()
+	<-ch
+}
+
+func runServer(errCh chan error, cfg *jailConfig) {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
+	if err != nil {
+		errCh <- err
+		return
+	}
+	log.Printf("listening on %d", cfg.Port)
+	defer l.Close()
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			log.Println(err)
+		}
+		go runConn(cfg, errCh, c)
+	}
+}
+
+func runNsjailChild(ch chan error) {
+	cmd := exec.Command("/jail/run", "nsjail")
+	cmd.Env = os.Environ()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		ch <- fmt.Errorf("run nsjail child: %w", err)
+	}
+}
+
 func run() error {
 	cfg := &jailConfig{}
 	if err := env.Parse(cfg); err != nil {
 		return fmt.Errorf("parse env config: %w", err)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "nsjail" {
+		return runNsjail(cfg)
 	}
 	if cfg.ReadOnly {
 		if err := remountRoot(); err != nil {
@@ -343,7 +414,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	cfg.cgroup = *cgroup
+	cfg.cgroup = cgroup
 	if err := mountCgroup(cgroup); err != nil {
 		return fmt.Errorf("delegate cgroup: %w", err)
 	}
@@ -353,15 +424,22 @@ func run() error {
 	if err := runHook(); err != nil {
 		return err
 	}
-	if err := runNsjail(cfg); err != nil {
-		return err
+	if cfg.Pow == 0 {
+		if err := runNsjail(cfg); err != nil {
+			return err
+		}
+	} else {
+		errCh := make(chan error)
+		go runNsjailChild(errCh)
+		go runServer(errCh, cfg)
+		return <-errCh
 	}
 	return nil
 }
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, fmt.Errorf("jail: %w", err))
 		os.Exit(1)
 	}
 }
