@@ -1,5 +1,5 @@
 #!/bin/sh
-# jailpow runner
+# jailpow proof of work runner
 # https://github.com/redpwn/jail/blob/master/cmd/jailpow/run.sh
 
 set -e
@@ -12,9 +12,8 @@ run() {
   case $(uname | tr '[:upper:]' '[:lower:]') in
     linux*) release=linux-amd64;;
     darwin*) release=darwin-amd64;;
-    msys*) release=windows-amd64.exe;;
-    cygwin*) release=windows-amd64.exe;;
-    *) echo unknown OS; exit 1
+    msys*|mingw*|cygwin*) release=windows-amd64.exe;;
+    *) echo unknown operating system >&2; exit 1
   esac
   [ -e "$cache_path" ] || curl -sSfLo "$cache_path" "https://github.com/redpwn/jail/releases/download/$version/jailpow-$release" && chmod u+x "$cache_path"
   "$cache_path" "$challenge"

@@ -52,7 +52,7 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan error) {
 	defer connDec(ip)
 	chal := pow.GenerateChallenge(cfg.Pow)
 	r := bufio.NewReader(io.LimitReader(c, 1024))
-	c.Write([]byte(fmt.Sprintf("proof of work: sh <(curl -sSf https://pwn.red/pow) %s\nsolution: ", chal)))
+	c.Write([]byte(fmt.Sprintf("proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chal)))
 	s, err := r.ReadString('\n')
 	if err != nil {
 		return
