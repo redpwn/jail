@@ -165,7 +165,7 @@ func runHook() error {
 	return nil
 }
 
-func runNsjailChild(errCh chan error) {
+func runNsjailChild(errCh chan<- error) {
 	cmd := exec.Command("/jail/nsjail", "-C", nsjailCfgPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

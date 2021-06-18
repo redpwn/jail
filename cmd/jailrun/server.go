@@ -15,29 +15,31 @@ import (
 	"inet.af/netaddr"
 )
 
-var connMu sync.Mutex
-var connCountPerIp = make(map[netaddr.IP]uint32)
-var	connCount uint32
+var connCount = new(struct{
+	mu sync.Mutex
+	perIp map[netaddr.IP]uint32
+	total uint32
+})
 
 func connInc(cfg *jailConfig, ip netaddr.IP) bool {
-	connMu.Lock()
-	defer connMu.Unlock()
-	if (cfg.Conns > 0 && connCount >= cfg.Conns) || (cfg.ConnsPerIp > 0 && connCountPerIp[ip] >= cfg.ConnsPerIp) {
+	connCount.mu.Lock()
+	defer connCount.mu.Unlock()
+	if (cfg.Conns > 0 && connCount.total >= cfg.Conns) || (cfg.ConnsPerIp > 0 && connCount.perIp[ip] >= cfg.ConnsPerIp) {
 		return false
 	}
-	connCountPerIp[ip] += 1
-	connCount += 1
+	connCount.perIp[ip] += 1
+	connCount.total += 1
 	return true
 }
 
 func connDec(ip netaddr.IP) {
-	connMu.Lock()
-	defer connMu.Unlock()
-	connCountPerIp[ip] -= 1
-	connCount -= 1
+	connCount.mu.Lock()
+	defer connCount.mu.Unlock()
+	connCount.perIp[ip] -= 1
+	connCount.total -= 1
 }
 
-func runConn(cfg *jailConfig, c net.Conn, errCh chan error) {
+func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	defer c.Close()
 	addr := c.RemoteAddr().(*net.TCPAddr)
 	log.Printf("connection: %s", addr)
@@ -82,7 +84,7 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan error) {
 	<-eofCh
 }
 
-func startServer(cfg *jailConfig, errCh chan error) {
+func startServer(cfg *jailConfig, errCh chan<- error) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		errCh <- err
