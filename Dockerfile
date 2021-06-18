@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y protobuf-compiler libseccomp-dev libgmp
 COPY go.mod go.sum .
 RUN go mod download
 COPY nsjail/config.proto nsjail/
-COPY pow pow
 COPY cmd cmd
 RUN go generate ./cmd/jailrun && go build -v -ldflags "-w -s" ./cmd/jailrun
 

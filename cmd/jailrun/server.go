@@ -10,16 +10,16 @@ import (
 	"runtime"
 	"sync"
 
-	"golang.org/x/sys/unix"
 	"github.com/redpwn/pow"
+	"golang.org/x/sys/unix"
 	"inet.af/netaddr"
 )
 
-var connCount = new(struct{
-	mu sync.Mutex
+var connCount = struct {
+	mu    sync.Mutex
 	perIp map[netaddr.IP]uint32
 	total uint32
-})
+}{perIp: make(map[netaddr.IP]uint32)}
 
 func connInc(cfg *jailConfig, ip netaddr.IP) bool {
 	connCount.mu.Lock()
