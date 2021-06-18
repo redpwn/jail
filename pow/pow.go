@@ -40,7 +40,7 @@ func DecodeChallenge(v string) (*challenge, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(dBytes) > 8 {
+	if len(dBytes) > 4 {
 		return nil, errors.New("difficulty too long")
 	}
 	// pad start with 0s to 4 bytes
