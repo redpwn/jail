@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"golang.org/x/sys/unix"
-	"github.com/redpwn/jail/pow"
+	"github.com/redpwn/pow"
 	"inet.af/netaddr"
 )
 
