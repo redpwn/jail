@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/redpwn/pow"
@@ -39,6 +41,20 @@ func connDec(ip netaddr.IP) {
 	connCount.total -= 1
 }
 
+// readBuf reads the internal buffer from bufio.Reader
+func readBuf(r *bufio.Reader) []byte {
+	b := make([]byte, r.Buffered())
+	r.Read(b)
+	return b
+}
+
+func runCopy(dst io.Writer, src io.Reader, ch chan<- struct{}) {
+	if _, err := io.Copy(dst, src); err != nil && !errors.Is(err, net.ErrClosed) {
+		log.Println(fmt.Errorf("connection copy: %w", err))
+	}
+	ch <- struct{}{}
+}
+
 func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	defer c.Close()
 	addr := c.RemoteAddr().(*net.TCPAddr)
@@ -53,13 +69,13 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	}
 	defer connDec(ip)
 	chal := pow.GenerateChallenge(cfg.Pow)
-	r := bufio.NewReader(io.LimitReader(c, 1024))
+	r := bufio.NewReader(io.LimitReader(c, 1024)) // prevent denial of service
 	c.Write([]byte(fmt.Sprintf("proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chal)))
 	s, err := r.ReadString('\n')
 	if err != nil {
 		return
 	}
-	correct, err := chal.Check(s)
+	correct, err := chal.Check(strings.TrimSpace(s))
 	if err != nil || !correct {
 		log.Printf("connection: %s: bad pow", addr)
 		c.Write([]byte("incorrect proof of work\n"))
@@ -72,15 +88,10 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 		return
 	}
 	defer d.Close()
+	d.Write(readBuf(r))
 	eofCh := make(chan struct{})
-	go func() {
-		io.Copy(c, d)
-		eofCh <- struct{}{}
-	}()
-	go func() {
-		io.Copy(d, c)
-		eofCh <- struct{}{}
-	}()
+	go runCopy(c, d, eofCh)
+	go runCopy(d, c, eofCh)
 	<-eofCh
 }
 
