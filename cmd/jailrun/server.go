@@ -48,9 +48,9 @@ func readBuf(r *bufio.Reader) []byte {
 	return b
 }
 
-func runCopy(dst io.Writer, src io.Reader, ch chan<- struct{}) {
+func runCopy(dst io.Writer, src io.Reader, addr *net.TCPAddr, ch chan<- struct{}) {
 	if _, err := io.Copy(dst, src); err != nil && !errors.Is(err, net.ErrClosed) {
-		log.Println(fmt.Errorf("connection copy: %w", err))
+		log.Println(fmt.Errorf("connection: %s: copy: %w", addr, err))
 	}
 	ch <- struct{}{}
 }
@@ -58,13 +58,14 @@ func runCopy(dst io.Writer, src io.Reader, ch chan<- struct{}) {
 func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	defer c.Close()
 	addr := c.RemoteAddr().(*net.TCPAddr)
-	log.Printf("connection: %s", addr)
+	log.Printf("connection %s: connect", addr)
+	defer log.Printf("connection %s: close", addr)
 	ip, ok := netaddr.FromStdIP(addr.IP)
 	if !ok {
 		return
 	}
 	if !connInc(cfg, ip) {
-		log.Printf("connection: %s: limit reached", addr)
+		log.Printf("connection %s: limit reached", addr)
 		return
 	}
 	defer connDec(ip)
@@ -75,13 +76,12 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	if err != nil {
 		return
 	}
-	correct, err := chal.Check(strings.TrimSpace(s))
-	if err != nil || !correct {
-		log.Printf("connection: %s: bad pow", addr)
+	if correct, err := chal.Check(strings.TrimSpace(s)); err != nil || !correct {
+		log.Printf("connection %s: bad pow", addr)
 		c.Write([]byte("incorrect proof of work\n"))
 		return
 	}
-	log.Printf("connection: %s: forwarding", addr)
+	log.Printf("connection %s: forwarding", addr)
 	d, err := net.Dial("tcp", fmt.Sprintf(":%d", cfg.Port+1))
 	if err != nil {
 		errCh <- err
@@ -90,8 +90,8 @@ func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
 	defer d.Close()
 	d.Write(readBuf(r))
 	eofCh := make(chan struct{})
-	go runCopy(c, d, eofCh)
-	go runCopy(d, c, eofCh)
+	go runCopy(c, d, addr, eofCh)
+	go runCopy(d, c, addr, eofCh)
 	<-eofCh
 }
 
