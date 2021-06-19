@@ -23,7 +23,7 @@ const (
 	nsjailCfgPath = "/tmp/nsjail.cfg"
 	hookPath      = "/jail/hook.sh"
 	mountFlags    = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
-	nsjailId      = 1000
+	userId        = 1000
 )
 
 type size uint64

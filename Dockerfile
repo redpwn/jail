@@ -14,7 +14,7 @@ COPY cmd cmd
 RUN go generate ./cmd/jailrun && go build -v -ldflags "-w -s" ./cmd/jailrun
 
 FROM busybox:1.32.1-glibc
-RUN adduser -HDu 1000 nsjail && \
+RUN adduser -HDu 1000 jail && \
     mkdir -p /srv /jail/cgroup/cpu /jail/cgroup/mem /jail/cgroup/pids /jail/cgroup/unified /jail/dev && \
     mknod -m 666 /jail/dev/null c 1 3 && \
     mknod -m 666 /jail/dev/zero c 1 5 && \

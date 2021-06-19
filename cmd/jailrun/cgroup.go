@@ -62,7 +62,7 @@ func mountCgroup1(name string, entry *cgroup1Entry) error {
 	if err := os.Mkdir(delegated, 0755); err != nil {
 		return err
 	}
-	if err := os.Chown(delegated, nsjailId, nsjailId); err != nil {
+	if err := os.Chown(delegated, userId, userId); err != nil {
 		return err
 	}
 	return nil
@@ -83,7 +83,7 @@ func mountCgroup2() error {
 	if err := os.WriteFile(dest+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
 		return err
 	}
-	if err := os.Chown(dest+"/cgroup.procs", nsjailId, nsjailId); err != nil {
+	if err := os.Chown(dest+"/cgroup.procs", userId, userId); err != nil {
 		return fmt.Errorf("cgroup2 delegate: %w", err)
 	}
 	runPath := dest + "/run"
@@ -93,7 +93,7 @@ func mountCgroup2() error {
 	if err := os.WriteFile(runPath+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
 		return err
 	}
-	if err := os.Chown(runPath, nsjailId, nsjailId); err != nil {
+	if err := os.Chown(runPath, userId, userId); err != nil {
 		return err
 	}
 	return nil

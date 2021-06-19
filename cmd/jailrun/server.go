@@ -29,16 +29,16 @@ func connInc(cfg *jailConfig, ip netaddr.IP) bool {
 	if (cfg.Conns > 0 && connCount.total >= cfg.Conns) || (cfg.ConnsPerIp > 0 && connCount.perIp[ip] >= cfg.ConnsPerIp) {
 		return false
 	}
-	connCount.perIp[ip] += 1
-	connCount.total += 1
+	connCount.perIp[ip]--
+	connCount.total--
 	return true
 }
 
 func connDec(ip netaddr.IP) {
 	connCount.mu.Lock()
 	defer connCount.mu.Unlock()
-	connCount.perIp[ip] -= 1
-	connCount.total -= 1
+	connCount.perIp[ip]--
+	connCount.total--
 }
 
 // readBuf reads the internal buffer from bufio.Reader

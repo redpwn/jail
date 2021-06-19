@@ -49,13 +49,13 @@ func dropPrivs(cfg *jailConfig) error {
 	if err := initSeccomp(cfg); err != nil {
 		return fmt.Errorf("init seccomp: %w", err)
 	}
-	if err := unix.Setresgid(nsjailId, nsjailId, nsjailId); err != nil {
+	if err := unix.Setresgid(userId, userId, userId); err != nil {
 		return fmt.Errorf("setresgid nsjail: %w", err)
 	}
-	if err := unix.Setgroups([]int{nsjailId}); err != nil {
+	if err := unix.Setgroups([]int{userId}); err != nil {
 		return fmt.Errorf("setgroups nsjail: %w", err)
 	}
-	if err := unix.Setresuid(nsjailId, nsjailId, nsjailId); err != nil {
+	if err := unix.Setresuid(userId, userId, userId); err != nil {
 		return fmt.Errorf("setresuid nsjail: %w", err)
 	}
 	capHeader := &unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}
