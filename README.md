@@ -21,6 +21,14 @@ For an example of installing packages inside the jail, [see `examples/cowsay`](h
 
 For a Python example with environment configuration, [see `examples/python`](https://github.com/redpwn/jail/blob/master/examples/python/Dockerfile).
 
+## Proof of Work
+
+To require a proof of work from clients for every connection, [set `JAIL_POW`](#configuration-reference) to a nonzero difficulty value.
+Each difficulty increase of 1500 requires approximately 1 second of CPU time.
+The proof of work system is designed to not be parallelizable.
+
+For convenience, the proof of work system uses the script [pwn.red/pow](https://pwn.red/pow), which downloads, caches, and runs the solver.
+
 ## Runtime Reference
 
 The container listens on port 5000 for incoming TCP connections.
@@ -50,7 +58,8 @@ Name|Default|Description
 `JAIL_PIDS`|5|Maximum PIDs per connection
 `JAIL_MEM`|5M|Maximum memory per connection
 `JAIL_CPU`|100|Maximum CPU milliseconds per wall second per connection
-`JAIL_PORT`|5000|Port for nsjail to bind to
+`JAIL_POW`|0|[Proof of work](#proof-of-work) difficulty
+`JAIL_PORT`|5000|Port number to bind to
 `JAIL_SYSCALLS`|*(none)*|Additional allowed syscall names separated by `,`
 `JAIL_READ_ONLY`|true|Whether to remount the root file system as read only
 

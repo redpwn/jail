@@ -3,38 +3,28 @@ on:
   push:
     branches:
       - master
+    tags:
+      - v*
   pull_request:
 jobs:
-  lint:
+  docker:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/setup-go@v2
+      - uses: docker/metadata-action@v3
+        id: meta
         with:
-          go-version: 1.16.4
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - run: |
-          sudo apt-get install -y protobuf-compiler libseccomp-dev
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-          go generate
-      - uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.39.0
-          skip-go-installation: true
-  publish:
-    runs-on: ubuntu-20.04
-    if: github.ref == 'refs/heads/master'
-    needs:
-      - lint
-    steps:
+          images: redpwn/jail
+          tags: |
+            type=sha,format=long
+            type=ref,event=tag
       - uses: docker/login-action@v1
+        if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       - uses: docker/build-push-action@v2
         with:
-          push: true
-          tags: redpwn/jail,redpwn/jail:sha-${{ github.sha }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=redpwn/jail
           cache-to: type=inline
