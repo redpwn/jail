@@ -37,6 +37,7 @@ Jails require some container security options.
 The example [`docker-compose.yml`](https://github.com/redpwn/jail/blob/master/examples/shell/docker-compose.yml) specifies these options.
 
 * AppArmor: `unconfined`
+* seccomp: `unconfined`
 * Capabilities: `chown`, `setuid`, `setgid`, `sys_admin`
 
 Jails are not compatible with SELinux.
@@ -60,7 +61,7 @@ Name|Default|Description
 `JAIL_POW`|0|[Proof of work](#proof-of-work) difficulty
 `JAIL_PORT`|5000|Port number to bind to
 `JAIL_SYSCALLS`|*(none)*|Additional allowed syscall names separated by `,`
-`JAIL_READ_ONLY`|true|Whether to remount the root file system as read only
+`JAIL_READ_ONLY`|true|Remount the container root as read only (Jail root is always read only)
 
 If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
