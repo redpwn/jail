@@ -37,7 +37,6 @@ Jails require some container security options.
 The example [`docker-compose.yml`](https://github.com/redpwn/jail/blob/master/examples/shell/docker-compose.yml) specifies these options.
 
 * AppArmor: `unconfined`
-* [seccomp: `seccomp.json`](https://github.com/redpwn/jail/blob/master/seccomp.json)
 * Capabilities: `chown`, `setuid`, `setgid`, `sys_admin`
 
 Jails are not compatible with SELinux.
