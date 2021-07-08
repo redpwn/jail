@@ -1,13 +1,13 @@
 FROM debian:10.7-slim AS nsjail
 WORKDIR /app
 RUN apt-get update && apt-get install -y curl autoconf bison flex gcc g++ git libprotobuf-dev libnl-route-3-dev libtool make pkg-config protobuf-compiler
-COPY nsjail .
-RUN make
+COPY nsjail nsjail.patch ./
+RUN patch -p1 < nsjail.patch && make
 
 FROM golang:1.16.5-buster AS run
 WORKDIR /app
 RUN apt-get update && apt-get install -y protobuf-compiler libseccomp-dev libgmp-dev && go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-COPY go.mod go.sum .
+COPY go.mod go.sum ./
 RUN go mod download
 COPY nsjail/config.proto nsjail/
 COPY cmd cmd
