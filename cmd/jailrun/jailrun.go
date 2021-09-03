@@ -1,7 +1,7 @@
 package main
 
-//go:generate mkdir -p ../../proto
-//go:generate protoc -I../../nsjail --go_out ../../proto --go_opt Mconfig.proto=/nsjail config.proto
+//go:generate mkdir -p proto
+//go:generate protoc -I../../nsjail --go_out proto --go_opt Mconfig.proto=/nsjail config.proto
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/docker/go-units"
-	"github.com/redpwn/jail/proto/nsjail"
+	"github.com/redpwn/jail/cmd/jailrun/proto/nsjail"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -224,7 +224,7 @@ func run() error {
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
