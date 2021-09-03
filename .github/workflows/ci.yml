@@ -10,6 +10,7 @@ jobs:
   docker:
     runs-on: ubuntu-20.04
     steps:
+      - uses: docker/setup-buildx-action@v1
       - uses: docker/metadata-action@v3
         id: meta
         with:
@@ -26,5 +27,5 @@ jobs:
         with:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=redpwn/jail
-          cache-to: type=inline
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
