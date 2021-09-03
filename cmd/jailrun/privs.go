@@ -28,6 +28,8 @@ func initSeccomp(cfg *jailConfig) error {
 		for _, name := range rule.names {
 			call, err := seccomp.GetSyscallFromName(name)
 			if err != nil {
+				// match runc behavior for builtin syscalls
+				// https://github.com/opencontainers/runc/blob/c61f6062547d20b80a07e9593e9617e115773b28/libcontainer/seccomp/seccomp_linux.go#L154-L159
 				continue
 			}
 			if err := filter.AddRule(call, rule.act); err != nil {
