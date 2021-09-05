@@ -108,7 +108,6 @@ func writeConfig(cfg *jailConfig, cgroup *cgroupInfo) error {
 			Options: proto.String(fmt.Sprintf("size=%d", cfg.TmpSize)),
 			Nodev:   proto.Bool(true),
 			Nosuid:  proto.Bool(true),
-			Noexec:  proto.Bool(true),
 		})
 	}
 	content, err := prototext.Marshal(msg)
