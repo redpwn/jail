@@ -17,28 +17,33 @@ import (
 	"inet.af/netaddr"
 )
 
-var connCount = struct {
-	mu    sync.Mutex
-	perIp map[netaddr.IP]uint32
-	total uint32
-}{perIp: make(map[netaddr.IP]uint32)}
+type server struct {
+	cfg        *jailConfig
+	errCh      chan<- error
+	countMu    sync.Mutex
+	countPerIp map[netaddr.IP]uint32
+	countTotal uint32
+}
 
-func connInc(cfg *jailConfig, ip netaddr.IP) bool {
-	connCount.mu.Lock()
-	defer connCount.mu.Unlock()
-	if (cfg.Conns > 0 && connCount.total >= cfg.Conns) || (cfg.ConnsPerIp > 0 && connCount.perIp[ip] >= cfg.ConnsPerIp) {
+func (s *server) connInc(ip netaddr.IP) bool {
+	s.countMu.Lock()
+	defer s.countMu.Unlock()
+	if (s.cfg.Conns > 0 && s.countTotal >= s.cfg.Conns) || (s.cfg.ConnsPerIp > 0 && s.countPerIp[ip] >= s.cfg.ConnsPerIp) {
 		return false
 	}
-	connCount.perIp[ip]--
-	connCount.total--
+	s.countPerIp[ip]++
+	s.countTotal++
 	return true
 }
 
-func connDec(ip netaddr.IP) {
-	connCount.mu.Lock()
-	defer connCount.mu.Unlock()
-	connCount.perIp[ip]--
-	connCount.total--
+func (s *server) connDec(ip netaddr.IP) {
+	s.countMu.Lock()
+	defer s.countMu.Unlock()
+	s.countPerIp[ip]--
+	if s.countPerIp[ip] <= 0 {
+		delete(s.countPerIp, ip)
+	}
+	s.countTotal--
 }
 
 // readBuf reads the internal buffer from bufio.Reader
@@ -55,43 +60,46 @@ func runCopy(dst io.Writer, src io.Reader, addr *net.TCPAddr, ch chan<- struct{}
 	ch <- struct{}{}
 }
 
-func runConn(cfg *jailConfig, c net.Conn, errCh chan<- error) {
-	defer c.Close()
-	addr := c.RemoteAddr().(*net.TCPAddr)
+func (s *server) runConn(inConn net.Conn) {
+	defer inConn.Close()
+	addr := inConn.RemoteAddr().(*net.TCPAddr)
 	log.Printf("connection %s: connect", addr)
 	defer log.Printf("connection %s: close", addr)
 	ip, ok := netaddr.FromStdIP(addr.IP)
 	if !ok {
 		return
 	}
-	if !connInc(cfg, ip) {
+
+	if !s.connInc(ip) {
 		log.Printf("connection %s: limit reached", addr)
 		return
 	}
-	defer connDec(ip)
-	chal := pow.GenerateChallenge(cfg.Pow)
-	r := bufio.NewReader(io.LimitReader(c, 1024)) // prevent denial of service
-	c.Write([]byte(fmt.Sprintf("proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chal)))
-	s, err := r.ReadString('\n')
+	defer s.connDec(ip)
+
+	chall := pow.GenerateChallenge(s.cfg.Pow)
+	fmt.Fprintf(inConn, "proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chall)
+	r := bufio.NewReader(io.LimitReader(inConn, 1024)) // prevent DoS
+	proof, err := r.ReadString('\n')
 	if err != nil {
 		return
 	}
-	if correct, err := chal.Check(strings.TrimSpace(s)); err != nil || !correct {
+	if good, err := chall.Check(strings.TrimSpace(proof)); err != nil || !good {
 		log.Printf("connection %s: bad pow", addr)
-		c.Write([]byte("incorrect proof of work\n"))
+		inConn.Write([]byte("incorrect proof of work\n"))
 		return
 	}
+
 	log.Printf("connection %s: forwarding", addr)
-	d, err := net.Dial("tcp", fmt.Sprintf(":%d", cfg.Port+1))
+	outConn, err := net.Dial("tcp", fmt.Sprintf(":%d", s.cfg.Port+1))
 	if err != nil {
-		errCh <- err
+		s.errCh <- err
 		return
 	}
-	defer d.Close()
-	d.Write(readBuf(r))
+	defer outConn.Close()
+	outConn.Write(readBuf(r))
 	eofCh := make(chan struct{})
-	go runCopy(c, d, addr, eofCh)
-	go runCopy(d, c, addr, eofCh)
+	go runCopy(inConn, outConn, addr, eofCh)
+	go runCopy(outConn, inConn, addr, eofCh)
 	<-eofCh
 }
 
@@ -103,12 +111,18 @@ func startServer(cfg *jailConfig, errCh chan<- error) {
 	}
 	log.Printf("listening on %d", cfg.Port)
 	defer l.Close()
+	s := &server{
+		cfg:        cfg,
+		errCh:      errCh,
+		countPerIp: make(map[netaddr.IP]uint32),
+	}
 	for {
-		c, err := l.Accept()
+		conn, err := l.Accept()
 		if err != nil {
 			log.Println(err)
+			continue
 		}
-		go runConn(cfg, c, errCh)
+		go s.runConn(conn)
 	}
 }
 

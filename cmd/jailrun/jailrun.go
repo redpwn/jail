@@ -44,11 +44,10 @@ type jailConfig struct {
 	Pow        uint32   `env:"JAIL_POW"`
 	Port       uint32   `env:"JAIL_PORT" envDefault:"5000"`
 	Syscalls   []string `env:"JAIL_SYSCALLS"`
-	ReadOnly   bool     `env:"JAIL_READ_ONLY" envDefault:"true"`
-	cgroup     *cgroupInfo
+	TmpSize    size     `env:"JAIL_TMP_SIZE"`
 }
 
-func writeConfig(cfg *jailConfig) error {
+func writeConfig(cfg *jailConfig, cgroup *cgroupInfo) error {
 	msg := &nsjail.NsJailConfig{
 		Mode:              nsjail.Mode_LISTEN.Enum(),
 		Port:              &cfg.Port,
@@ -75,8 +74,8 @@ func writeConfig(cfg *jailConfig) error {
 			Src:    proto.String("/srv"),
 			Dst:    proto.String("/"),
 			IsBind: proto.Bool(true),
-			Nosuid: proto.Bool(true),
 			Nodev:  proto.Bool(true),
+			Nosuid: proto.Bool(true),
 		}},
 		Hostname: proto.String("app"),
 		Cwd:      proto.String("/app"),
@@ -84,22 +83,32 @@ func writeConfig(cfg *jailConfig) error {
 			Path: proto.String("/app/run"),
 		},
 	}
-	if cfg.cgroup.cgroup2 {
+	if cgroup.cgroup2 {
 		msg.UseCgroupv2 = proto.Bool(true)
 		msg.Cgroupv2Mount = proto.String(cgroupPath + "/unified/run")
 	} else {
 		msg.CgroupPidsMount = proto.String(cgroupPath + "/pids")
-		msg.CgroupPidsParent = &cfg.cgroup.pids.parent
+		msg.CgroupPidsParent = &cgroup.pids.parent
 		msg.CgroupMemMount = proto.String(cgroupPath + "/mem")
-		msg.CgroupMemParent = &cfg.cgroup.mem.parent
+		msg.CgroupMemParent = &cgroup.mem.parent
 		msg.CgroupCpuMount = proto.String(cgroupPath + "/cpu")
-		msg.CgroupCpuParent = &cfg.cgroup.cpu.parent
+		msg.CgroupCpuParent = &cgroup.cpu.parent
 	}
-	if cfg.Pow != 0 {
+	if cfg.Pow > 0 {
 		msg.Bindhost = proto.String("127.0.0.1")
 		msg.Port = proto.Uint32(cfg.Port + 1)
 		msg.MaxConns = proto.Uint32(0)
 		msg.MaxConnsPerIp = proto.Uint32(0)
+	}
+	if cfg.TmpSize > 0 {
+		msg.Mount = append(msg.Mount, &nsjail.MountPt{
+			Dst:     proto.String("/tmp"),
+			Fstype:  proto.String("tmpfs"),
+			Rw:      proto.Bool(true),
+			Options: proto.String(fmt.Sprintf("size=%d", cfg.TmpSize)),
+			Nodev:   proto.Bool(true),
+			Nosuid:  proto.Bool(true),
+		})
 	}
 	content, err := prototext.Marshal(msg)
 	if err != nil {
@@ -126,13 +135,6 @@ func runNsjail(cfg *jailConfig) error {
 func mountTmp() error {
 	if err := unix.Mount("", "/tmp", "tmpfs", mountFlags, ""); err != nil {
 		return fmt.Errorf("mount tmpfs: %w", err)
-	}
-	return nil
-}
-
-func remountRoot() error {
-	if err := unix.Mount("", "/", "", unix.MS_REMOUNT|unix.MS_RDONLY, ""); err != nil {
-		return fmt.Errorf("remount root: %w", err)
 	}
 	return nil
 }
@@ -185,11 +187,6 @@ func run() error {
 		go startServer(cfg, errCh)
 		return <-errCh
 	}
-	if cfg.ReadOnly {
-		if err := remountRoot(); err != nil {
-			return err
-		}
-	}
 	if err := mountTmp(); err != nil {
 		return err
 	}
@@ -200,11 +197,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	cfg.cgroup = cgroup
 	if err := mountCgroup(cgroup); err != nil {
 		return fmt.Errorf("delegate cgroup: %w", err)
 	}
-	if err := writeConfig(cfg); err != nil {
+	if err := writeConfig(cfg, cgroup); err != nil {
 		return err
 	}
 	if err := runHook(); err != nil {

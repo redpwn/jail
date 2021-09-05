@@ -61,8 +61,7 @@ To remove a limit, set its value to `0`.
 | `JAIL_POW`          | 0        | [Proof of work](#proof-of-work) difficulty              |
 | `JAIL_PORT`         | 5000     | Port number to bind to                                  |
 | `JAIL_SYSCALLS`     | _(none)_ | Additional allowed syscall names separated by `,`       |
-| `JAIL_READ_ONLY`    | true     | Remount the container root as read only                 |
-
+| `JAIL_TMP_SIZE`     | 0        | Maximum size of writable `/tmp` directory               |
 
 If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
