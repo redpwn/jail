@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -12,13 +12,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/redpwn/jail/internal/config"
+	"github.com/redpwn/jail/internal/privs"
 	"github.com/redpwn/pow"
 	"golang.org/x/sys/unix"
 	"inet.af/netaddr"
 )
 
 type server struct {
-	cfg        *jailConfig
+	cfg        *config.Config
 	errCh      chan<- error
 	countMu    sync.Mutex
 	countPerIp map[netaddr.IP]uint32
@@ -103,7 +105,7 @@ func (s *server) runConn(inConn net.Conn) {
 	<-eofCh
 }
 
-func startServer(cfg *jailConfig, errCh chan<- error) {
+func startProxy(cfg *config.Config, errCh chan<- error) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		errCh <- err
@@ -126,14 +128,34 @@ func startServer(cfg *jailConfig, errCh chan<- error) {
 	}
 }
 
-func runServer(cfg *jailConfig) error {
+func execProxy(cfg *config.Config) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if err := dropPrivs(cfg); err != nil {
+	if err := privs.DropPrivs(cfg); err != nil {
 		return err
 	}
-	if err := unix.Exec("/jail/run", []string{"run", "server"}, os.Environ()); err != nil {
+	if err := unix.Exec("/jail/run", []string{"run", "proxy"}, os.Environ()); err != nil {
 		return fmt.Errorf("exec run: %w", err)
+	}
+	return nil
+}
+
+func RunProxy(cfg *config.Config) error {
+	errCh := make(chan error)
+	go runNsjailChild(errCh)
+	go startProxy(cfg, errCh)
+	return <-errCh
+}
+
+func ExecServer(cfg *config.Config) error {
+	if cfg.Pow > 0 {
+		if err := execProxy(cfg); err != nil {
+			return err
+		}
+	} else {
+		if err := execNsjail(cfg); err != nil {
+			return err
+		}
 	}
 	return nil
 }
