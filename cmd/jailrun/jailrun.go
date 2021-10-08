@@ -23,7 +23,7 @@ func run() error {
 		return err
 	}
 	if err := cgroup.Mount(); err != nil {
-		return err
+		return fmt.Errorf("delegate cgroup: %w", err)
 	}
 	msg := &nsjail.NsJailConfig{}
 	cfg.SetConfig(msg)
@@ -37,10 +37,7 @@ func run() error {
 	if err := config.RunHook(); err != nil {
 		return err
 	}
-	if err := server.ExecServer(cfg); err != nil {
-		return err
-	}
-	return nil
+	return server.ExecServer(cfg)
 }
 
 func main() {

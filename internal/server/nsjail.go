@@ -28,7 +28,7 @@ func execNsjail(cfg *config.Config) error {
 	if err := privs.DropPrivs(cfg); err != nil {
 		return err
 	}
-	if err := unix.Exec(nsjailPath, []string{"nsjail", "-C", config.NsjailConfigPath}, os.Environ()); err != nil {
+	if err := unix.Exec(nsjailPath, []string{nsjailPath, "-C", config.NsjailConfigPath}, os.Environ()); err != nil {
 		return fmt.Errorf("exec nsjail: %w", err)
 	}
 	return nil

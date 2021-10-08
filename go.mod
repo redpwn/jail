@@ -7,7 +7,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/redpwn/pow v0.1.2
 	github.com/seccomp/libseccomp-golang v0.9.1
-	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164
+	golang.org/x/sys v0.0.0-20211006225509-1a26e0398eed
 	google.golang.org/protobuf v1.27.1
 	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
