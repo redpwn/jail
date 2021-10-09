@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y libseccomp-dev libgmp-dev
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd cmd
+COPY internal internal
 RUN go build -v -ldflags '-w -s' ./cmd/jailrun
 
 FROM busybox:1.33.1-glibc

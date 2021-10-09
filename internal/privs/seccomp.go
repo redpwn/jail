@@ -1,13 +1,14 @@
-package main
+package privs
 
 import (
 	"fmt"
 
+	"github.com/redpwn/jail/internal/config"
 	seccomp "github.com/seccomp/libseccomp-golang"
 	"golang.org/x/sys/unix"
 )
 
-func initSeccomp(cfg *jailConfig) error {
+func initSeccomp(cfg *config.Config) error {
 	arch, err := seccomp.GetNativeArch()
 	if err != nil {
 		return err
@@ -50,28 +51,6 @@ func initSeccomp(cfg *jailConfig) error {
 
 	if err := filter.Load(); err != nil {
 		return err
-	}
-	return nil
-}
-
-func dropPrivs(cfg *jailConfig) error {
-	if err := initSeccomp(cfg); err != nil {
-		return fmt.Errorf("init seccomp: %w", err)
-	}
-	if err := unix.Setresgid(userId, userId, userId); err != nil {
-		return fmt.Errorf("setresgid nsjail: %w", err)
-	}
-	if err := unix.Setgroups([]int{userId}); err != nil {
-		return fmt.Errorf("setgroups nsjail: %w", err)
-	}
-	if err := unix.Setresuid(userId, userId, userId); err != nil {
-		return fmt.Errorf("setresuid nsjail: %w", err)
-	}
-	capHeader := &unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}
-	// https://github.com/golang/go/issues/44312
-	capData := [2]unix.CapUserData{}
-	if err := unix.Capset(capHeader, &capData[0]); err != nil {
-		return fmt.Errorf("capset: %w", err)
 	}
 	return nil
 }

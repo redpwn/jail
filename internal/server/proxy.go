@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -12,38 +12,40 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/redpwn/jail/internal/config"
+	"github.com/redpwn/jail/internal/privs"
 	"github.com/redpwn/pow"
 	"golang.org/x/sys/unix"
 	"inet.af/netaddr"
 )
 
-type server struct {
-	cfg        *jailConfig
+type proxyServer struct {
+	cfg        *config.Config
 	errCh      chan<- error
 	countMu    sync.Mutex
 	countPerIp map[netaddr.IP]uint32
 	countTotal uint32
 }
 
-func (s *server) connInc(ip netaddr.IP) bool {
-	s.countMu.Lock()
-	defer s.countMu.Unlock()
-	if (s.cfg.Conns > 0 && s.countTotal >= s.cfg.Conns) || (s.cfg.ConnsPerIp > 0 && s.countPerIp[ip] >= s.cfg.ConnsPerIp) {
+func (p *proxyServer) connInc(ip netaddr.IP) bool {
+	p.countMu.Lock()
+	defer p.countMu.Unlock()
+	if (p.cfg.Conns > 0 && p.countTotal >= p.cfg.Conns) || (p.cfg.ConnsPerIp > 0 && p.countPerIp[ip] >= p.cfg.ConnsPerIp) {
 		return false
 	}
-	s.countPerIp[ip]++
-	s.countTotal++
+	p.countPerIp[ip]++
+	p.countTotal++
 	return true
 }
 
-func (s *server) connDec(ip netaddr.IP) {
-	s.countMu.Lock()
-	defer s.countMu.Unlock()
-	s.countPerIp[ip]--
-	if s.countPerIp[ip] <= 0 {
-		delete(s.countPerIp, ip)
+func (p *proxyServer) connDec(ip netaddr.IP) {
+	p.countMu.Lock()
+	defer p.countMu.Unlock()
+	p.countPerIp[ip]--
+	if p.countPerIp[ip] <= 0 {
+		delete(p.countPerIp, ip)
 	}
-	s.countTotal--
+	p.countTotal--
 }
 
 // readBuf reads the internal buffer from bufio.Reader
@@ -60,7 +62,7 @@ func runCopy(dst io.Writer, src io.Reader, addr *net.TCPAddr, ch chan<- struct{}
 	ch <- struct{}{}
 }
 
-func (s *server) runConn(inConn net.Conn) {
+func (p *proxyServer) runConn(inConn net.Conn) {
 	defer inConn.Close()
 	addr := inConn.RemoteAddr().(*net.TCPAddr)
 	log.Printf("connection %s: connect", addr)
@@ -70,13 +72,13 @@ func (s *server) runConn(inConn net.Conn) {
 		return
 	}
 
-	if !s.connInc(ip) {
+	if !p.connInc(ip) {
 		log.Printf("connection %s: limit reached", addr)
 		return
 	}
-	defer s.connDec(ip)
+	defer p.connDec(ip)
 
-	chall := pow.GenerateChallenge(s.cfg.Pow)
+	chall := pow.GenerateChallenge(p.cfg.Pow)
 	fmt.Fprintf(inConn, "proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chall)
 	r := bufio.NewReader(io.LimitReader(inConn, 1024)) // prevent DoS
 	proof, err := r.ReadString('\n')
@@ -90,9 +92,9 @@ func (s *server) runConn(inConn net.Conn) {
 	}
 
 	log.Printf("connection %s: forwarding", addr)
-	outConn, err := net.Dial("tcp", fmt.Sprintf(":%d", s.cfg.Port+1))
+	outConn, err := net.Dial("tcp", fmt.Sprintf(":%d", p.cfg.Port+1))
 	if err != nil {
-		s.errCh <- err
+		p.errCh <- err
 		return
 	}
 	defer outConn.Close()
@@ -103,7 +105,7 @@ func (s *server) runConn(inConn net.Conn) {
 	<-eofCh
 }
 
-func startServer(cfg *jailConfig, errCh chan<- error) {
+func startProxy(cfg *config.Config, errCh chan<- error) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		errCh <- err
@@ -111,7 +113,7 @@ func startServer(cfg *jailConfig, errCh chan<- error) {
 	}
 	log.Printf("listening on %d", cfg.Port)
 	defer l.Close()
-	s := &server{
+	p := &proxyServer{
 		cfg:        cfg,
 		errCh:      errCh,
 		countPerIp: make(map[netaddr.IP]uint32),
@@ -122,17 +124,19 @@ func startServer(cfg *jailConfig, errCh chan<- error) {
 			log.Println(err)
 			continue
 		}
-		go s.runConn(conn)
+		go p.runConn(conn)
 	}
 }
 
-func runServer(cfg *jailConfig) error {
+const runPath = "/jail/run"
+
+func execProxy(cfg *config.Config) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if err := dropPrivs(cfg); err != nil {
+	if err := privs.DropPrivs(cfg); err != nil {
 		return err
 	}
-	if err := unix.Exec("/jail/run", []string{"run", "server"}, os.Environ()); err != nil {
+	if err := unix.Exec(runPath, []string{runPath, "proxy"}, os.Environ()); err != nil {
 		return fmt.Errorf("exec run: %w", err)
 	}
 	return nil
