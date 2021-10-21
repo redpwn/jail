@@ -16,7 +16,7 @@ func RunHook() error {
 	cmd := exec.Command("/bin/sh", hookPath)
 	cmd.Env = append(
 		os.Environ(),
-		"nsjail_cfg=" + NsjailConfigPath,
+		"nsjail_cfg="+NsjailConfigPath,
 		// TODO: add cgroup info
 	)
 	cmd.Stdout = os.Stdout
