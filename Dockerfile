@@ -1,9 +1,9 @@
 FROM debian:11.0-slim AS nsjail
 WORKDIR /app
 RUN apt-get update && \
-  apt-get install -y autoconf bison flex gcc g++ libnl-route-3-dev libprotobuf-dev libseccomp-dev libtool make patch pkg-config protobuf-compiler
-COPY nsjail nsjail.patch ./
-RUN patch -p1 < nsjail.patch && make -j8
+  apt-get install -y autoconf bison flex gcc g++ libnl-route-3-dev libprotobuf-dev libseccomp-dev libtool make pkg-config protobuf-compiler
+COPY nsjail .
+RUN make -j
 
 FROM golang:1.17.0-bullseye AS run
 WORKDIR /app
