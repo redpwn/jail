@@ -28,7 +28,7 @@ func (c *cgroup2) Mount() error {
 		return err
 	}
 	if err := os.Chown(dest+"/cgroup.procs", privs.UserId, privs.UserId); err != nil {
-		return fmt.Errorf("cgroup2 delegate: %w", err)
+		return err
 	}
 	runPath := dest + "/run"
 	if err := os.Mkdir(runPath, 0700); err != nil {

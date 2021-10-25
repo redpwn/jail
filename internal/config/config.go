@@ -48,15 +48,6 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 	msg.CgroupPidsMax = &c.Pids
 	msg.CgroupMemMax = proto.Uint64(uint64(c.Mem))
 	msg.CgroupCpuMsPerSec = &c.Cpu
-	// kafel umount is umount2
-	// https://github.com/google/kafel/blob/f67ddf5acf57fb7de1e25500cc266c1588ecf3f1/src/syscalls/amd64_syscalls.c#L2041-L2046
-	msg.SeccompString = []string{`
-		ERRNO(1) {
-			clone { (clone_flags & 0x7e020000) != 0 },
-			mount, sethostname, umount, pivot_root
-		}
-		DEFAULT ALLOW
-	`}
 	msg.Mount = []*nsjail.MountPt{{
 		Src:    proto.String("/srv"),
 		Dst:    proto.String("/"),

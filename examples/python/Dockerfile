@@ -1,5 +1,5 @@
 FROM python:slim AS app
-RUN pip install progress --no-cache-dir
+RUN pip install --no-cache-dir progress
 
 FROM redpwn/jail
 COPY --from=app / /srv

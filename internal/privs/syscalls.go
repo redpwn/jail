@@ -177,6 +177,7 @@ var seccompRules = []seccompRule{{
 		"mlockall",
 		"mmap",
 		"mmap2",
+		"modify_ldt",
 		"mount",
 		"mprotect",
 		"mq_getsetattr",
