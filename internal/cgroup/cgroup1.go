@@ -59,4 +59,7 @@ func (c *cgroup1) SetConfig(msg *nsjail.NsJailConfig) {
 	msg.CgroupMemParent = &c.mem.parent
 	msg.CgroupCpuMount = proto.String(rootPath + "/cpu")
 	msg.CgroupCpuParent = &c.cpu.parent
+	if checkExists(rootPath + "/mem/memory.memsw.limit_in_bytes") {
+		msg.CgroupMemSwapMax = proto.Int64(0)
+	}
 }

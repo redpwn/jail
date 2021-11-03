@@ -46,4 +46,7 @@ func (c *cgroup2) Mount() error {
 func (c *cgroup2) SetConfig(msg *nsjail.NsJailConfig) {
 	msg.UseCgroupv2 = proto.Bool(true)
 	msg.Cgroupv2Mount = proto.String(rootPath + "/unified/run")
+	if checkExists(rootPath + "/unified/memory.swap.max") {
+		msg.CgroupMemSwapMax = proto.Int64(0)
+	}
 }
