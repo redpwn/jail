@@ -1,11 +1,11 @@
-FROM debian:11.0-slim AS nsjail
+FROM debian:11.1-slim AS nsjail
 WORKDIR /app
 RUN apt-get update && \
   apt-get install -y autoconf bison flex gcc g++ libnl-route-3-dev libprotobuf-dev libseccomp-dev libtool make pkg-config protobuf-compiler
 COPY nsjail .
 RUN make -j
 
-FROM golang:1.17.0-bullseye AS run
+FROM golang:1.17.3-bullseye AS run
 WORKDIR /app
 RUN apt-get update && apt-get install -y libseccomp-dev libgmp-dev
 COPY go.mod go.sum ./
@@ -14,7 +14,7 @@ COPY cmd cmd
 COPY internal internal
 RUN go build -v -ldflags '-w -s' ./cmd/jailrun
 
-FROM busybox:1.33.1-glibc
+FROM busybox:1.34.1-glibc
 RUN adduser -HDu 1000 jail && \
   mkdir -p /srv /jail/cgroup/cpu /jail/cgroup/mem /jail/cgroup/pids /jail/cgroup/unified /jail/dev && \
   mknod -m 666 /jail/dev/null c 1 3 && \

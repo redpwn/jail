@@ -20,6 +20,11 @@ const (
 	mountFlags = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
 )
 
+func checkExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 func ReadCgroup() (Cgroup, error) {
 	v1 := &cgroup1{}
 	f, err := os.Open("/proc/self/cgroup")
