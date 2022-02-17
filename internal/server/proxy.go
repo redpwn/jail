@@ -57,7 +57,7 @@ func readBuf(r *bufio.Reader) []byte {
 
 func runCopy(dst io.Writer, src io.Reader, addr *net.TCPAddr, ch chan<- struct{}) {
 	if _, err := io.Copy(dst, src); err != nil && !errors.Is(err, net.ErrClosed) {
-		log.Println(fmt.Errorf("connection %s: copy: %w", addr, err))
+		log.Printf("connection %s: copy: %s", addr, err)
 	}
 	ch <- struct{}{}
 }

@@ -12,7 +12,7 @@ func RunProxy(cfg *config.Config) error {
 }
 
 func ExecServer(cfg *config.Config) error {
-	if cfg.Pow > 0 {
+	if cfg.Proxy() {
 		if err := execProxy(cfg); err != nil {
 			return err
 		}

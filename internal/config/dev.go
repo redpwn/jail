@@ -4,16 +4,51 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 
 	"golang.org/x/sys/unix"
 )
 
-func MountDev() error {
+func copyDev(name string) error {
+	stx := &unix.Statx_t{}
+	src := "/dev/" + name
+	dst := "/srv/dev/" + name
+	if err := unix.Statx(0, src, 0, unix.STATX_TYPE|unix.STATX_MODE, stx); err != nil {
+		return fmt.Errorf("statx %s: %w", src, err)
+	}
+	t := stx.Mode & unix.S_IFMT
+	if t != unix.S_IFBLK && t != unix.S_IFCHR {
+		return fmt.Errorf("not block or char device: %s", src)
+	}
+	if err := os.MkdirAll(path.Dir(dst), 0755); err != nil {
+		return err
+	}
+	if err := unix.Mknod(dst, uint32(stx.Mode), int(unix.Mkdev(stx.Rdev_major, stx.Rdev_minor))); err != nil {
+		return fmt.Errorf("mknod %s: %w", dst, err)
+	}
+	return nil
+}
+
+const devMountFlags = uintptr(unix.MS_NOSUID | unix.MS_NOEXEC | unix.MS_RELATIME)
+
+func MountDev(devs []string) error {
 	if _, err := os.Stat("/srv/dev"); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	if err := unix.Mount("/jail/dev", "/srv/dev", "", unix.MS_BIND, ""); err != nil {
-		return fmt.Errorf("mount dev: %w", err)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	defer unix.Umask(unix.Umask(0))
+	if err := unix.Mount("", "/srv/dev", "tmpfs", devMountFlags, ""); err != nil {
+		return fmt.Errorf("mount dev tmpfs: %w", err)
+	}
+	for _, n := range devs {
+		if err := copyDev(n); err != nil {
+			return fmt.Errorf("copy dev %s: %w", n, err)
+		}
+	}
+	if err := unix.Mount("", "/srv/dev", "", unix.MS_REMOUNT|unix.MS_RDONLY|devMountFlags, ""); err != nil {
+		return fmt.Errorf("remount dev tmpfs: %w", err)
 	}
 	return nil
 }
