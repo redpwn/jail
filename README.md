@@ -1,4 +1,4 @@
-# [redpwn/jail](https://hub.docker.com/r/redpwn/jail)
+# redpwn/jail
 
 An [nsjail](https://nsjail.dev) Docker image for CTF pwnables
 

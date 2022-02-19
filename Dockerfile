@@ -17,10 +17,10 @@ RUN go build -v -ldflags '-w -s' ./cmd/jailrun
 FROM busybox:1.34.1-glibc
 RUN adduser -HDu 1000 jail && \
   mkdir -p /srv /jail/cgroup/cpu /jail/cgroup/mem /jail/cgroup/pids /jail/cgroup/unified
-COPY --from=nsjail /usr/lib/x86_64-linux-gnu/libprotobuf.so.23 /usr/lib/x86_64-linux-gnu/libnl-route-3.so.200 \
-  /lib/x86_64-linux-gnu/libnl-3.so.200 /lib/x86_64-linux-gnu/libz.so.1 /usr/lib/x86_64-linux-gnu/libstdc++.so.6 \
-  /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/
+COPY --from=nsjail /usr/lib/*-linux-gnu/libprotobuf.so.23 /usr/lib/*-linux-gnu/libnl-route-3.so.200 \
+  /lib/*-linux-gnu/libnl-3.so.200 /lib/*-linux-gnu/libz.so.1 /usr/lib/*-linux-gnu/libstdc++.so.6 \
+  /lib/*-linux-gnu/libgcc_s.so.1 /lib/
 COPY --from=nsjail /app/nsjail /jail/nsjail
-COPY --from=run /usr/lib/x86_64-linux-gnu/libseccomp.so.2 /usr/lib/x86_64-linux-gnu/libgmp.so.10 /lib/
+COPY --from=run /usr/lib/*-linux-gnu/libseccomp.so.2 /usr/lib/*-linux-gnu/libgmp.so.10 /lib/
 COPY --from=run /app/jailrun /jail/run
 CMD ["/jail/run"]
