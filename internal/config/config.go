@@ -37,8 +37,11 @@ type Config struct {
 	TmpSize    size     `env:"JAIL_TMP_SIZE"`
 }
 
-func (c *Config) Proxy() bool {
-	return c.Pow > 0
+func (c *Config) NsjailListen() (uint32, bool) {
+	if c.Pow <= 0 {
+		return c.Port, false
+	}
+	return c.Port + 1, true
 }
 
 const NsjailConfigPath = "/tmp/nsjail.cfg"
@@ -65,11 +68,11 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 	msg.ExecBin = &nsjail.Exe{
 		Path: proto.String("/app/run"),
 	}
-	if c.Proxy() {
+	port, willProxy := c.NsjailListen()
+	msg.Port = &port
+	if willProxy {
 		msg.Bindhost = proto.String("127.0.0.1")
-		msg.Port = proto.Uint32(c.Port + 1)
 	} else {
-		msg.Port = &c.Port
 		msg.MaxConns = &c.Conns
 		msg.MaxConnsPerIp = &c.ConnsPerIp
 	}

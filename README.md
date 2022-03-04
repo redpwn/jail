@@ -60,9 +60,11 @@ To remove a limit, set its value to `0`.
 | `JAIL_CPU`          | `100`               | Maximum CPU milliseconds per wall second per connection |
 | `JAIL_POW`          | `0`                 | [Proof of work](#proof-of-work) difficulty              |
 | `JAIL_PORT`         | `5000`              | Port number to bind to                                  |
-| `JAIL_DEV`          | `null,zero,urandom` | Device files available in `/dev`                        |
+| `JAIL_DEV`          | `null,zero,urandom` | Device files available in `/dev` separated by `,`       |
 | `JAIL_SYSCALLS`     | _(none)_            | Additional allowed syscall names separated by `,`       |
 | `JAIL_TMP_SIZE`     | `0`                 | Maximum size of writable `/tmp` directory               |
 
 If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
+
+Files in `JAIL_DEV` are only available if `/srv/dev` exists.

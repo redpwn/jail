@@ -92,7 +92,8 @@ func (p *proxyServer) runConn(inConn net.Conn) {
 	}
 
 	log.Printf("connection %s: forwarding", addr)
-	outConn, err := net.Dial("tcp", fmt.Sprintf(":%d", p.cfg.Port+1))
+	port, _ := p.cfg.NsjailListen()
+	outConn, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		p.errCh <- err
 		return

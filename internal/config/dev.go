@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"runtime"
 
 	"golang.org/x/sys/unix"
 )
 
 func copyDev(name string) error {
-	stx := &unix.Statx_t{}
 	src := "/dev/" + name
 	dst := "/srv/dev/" + name
+	stx := &unix.Statx_t{}
 	if err := unix.Statx(0, src, 0, unix.STATX_TYPE|unix.STATX_MODE, stx); err != nil {
 		return fmt.Errorf("statx %s: %w", src, err)
 	}
@@ -36,9 +35,8 @@ func MountDev(devs []string) error {
 	if _, err := os.Stat("/srv/dev"); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	defer unix.Umask(unix.Umask(0))
+	oldMask := unix.Umask(0)
+	defer unix.Umask(oldMask)
 	if err := unix.Mount("", "/srv/dev", "tmpfs", devMountFlags, ""); err != nil {
 		return fmt.Errorf("mount dev tmpfs: %w", err)
 	}
