@@ -27,7 +27,7 @@ To require a proof of work from clients for every connection, [set `JAIL_POW`](#
 Each difficulty increase of 1500 requires approximately 1 second of CPU time.
 The proof of work system is designed to not be parallelizable.
 
-For convenience, the proof of work system uses the script [pwn.red/pow](https://pwn.red/pow), which downloads, caches, and runs the solver.
+The script [pwn.red/pow](https://pwn.red/pow) downloads, caches, and runs the solver.
 
 ## Runtime Reference
 
@@ -50,20 +50,21 @@ Inside each jail, `/app/run` is executed with a working directory of `/app`.
 To configure, [use `ENV`](https://docs.docker.com/engine/reference/builder/#env).
 To remove a limit, set its value to `0`.
 
-| Name                | Default  | Description                                             |
-| ------------------- | -------- | ------------------------------------------------------- |
-| `JAIL_TIME`         | 20       | Maximum wall seconds per connection                     |
-| `JAIL_CONNS`        | 0        | Maximum concurrent connections across all IPs           |
-| `JAIL_CONNS_PER_IP` | 0        | Maximum concurrent connections for each IP              |
-| `JAIL_PIDS`         | 5        | Maximum PIDs per connection                             |
-| `JAIL_MEM`          | 5M       | Maximum memory per connection                           |
-| `JAIL_CPU`          | 100      | Maximum CPU milliseconds per wall second per connection |
-| `JAIL_POW`          | 0        | [Proof of work](#proof-of-work) difficulty              |
-| `JAIL_PORT`         | 5000     | Port number to bind to                                  |
-| `JAIL_SYSCALLS`     | _(none)_ | Additional allowed syscall names separated by `,`       |
-| `JAIL_TMP_SIZE`     | 0        | Maximum size of writable `/tmp` directory               |
+| Name                | Default             | Description                                             |
+| ------------------- | ------------------- | ------------------------------------------------------- |
+| `JAIL_TIME`         | `20`                | Maximum wall seconds per connection                     |
+| `JAIL_CONNS`        | `0`                 | Maximum concurrent connections across all IPs           |
+| `JAIL_CONNS_PER_IP` | `0`                 | Maximum concurrent connections for each IP              |
+| `JAIL_PIDS`         | `5`                 | Maximum PIDs per connection                             |
+| `JAIL_MEM`          | `5M`                | Maximum memory per connection                           |
+| `JAIL_CPU`          | `100`               | Maximum CPU milliseconds per wall second per connection |
+| `JAIL_POW`          | `0`                 | [Proof of work](#proof-of-work) difficulty              |
+| `JAIL_PORT`         | `5000`              | Port number to bind to                                  |
+| `JAIL_DEV`          | `null,zero,urandom` | Device files available in `/dev` separated by `,`       |
+| `JAIL_SYSCALLS`     | _(none)_            | Additional allowed syscall names separated by `,`       |
+| `JAIL_TMP_SIZE`     | `0`                 | Maximum size of writable `/tmp` directory               |
 
 If it exists, `/jail/hook.sh` is executed before the jail starts.
 Use this script to configure nsjail options or the execution environment.
 
-If `/srv/dev` exists, `/dev/null`, `/dev/zero`, and `/dev/urandom` are available inside the jail.
+Files in `JAIL_DEV` are only available if `/srv/dev` exists.

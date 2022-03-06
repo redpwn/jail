@@ -32,8 +32,16 @@ type Config struct {
 	Cpu        uint32   `env:"JAIL_CPU" envDefault:"100"`
 	Pow        uint32   `env:"JAIL_POW"`
 	Port       uint32   `env:"JAIL_PORT" envDefault:"5000"`
+	Dev        []string `env:"JAIL_DEV" envDefault:"null,zero,urandom"`
 	Syscalls   []string `env:"JAIL_SYSCALLS"`
 	TmpSize    size     `env:"JAIL_TMP_SIZE"`
+}
+
+func (c *Config) NsjailListen() (uint32, bool) {
+	if c.Pow <= 0 {
+		return c.Port, false
+	}
+	return c.Port + 1, true
 }
 
 const NsjailConfigPath = "/tmp/nsjail.cfg"
@@ -60,11 +68,11 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 	msg.ExecBin = &nsjail.Exe{
 		Path: proto.String("/app/run"),
 	}
-	if c.Pow > 0 {
+	port, willProxy := c.NsjailListen()
+	msg.Port = &port
+	if willProxy {
 		msg.Bindhost = proto.String("127.0.0.1")
-		msg.Port = proto.Uint32(c.Port + 1)
 	} else {
-		msg.Port = &c.Port
 		msg.MaxConns = &c.Conns
 		msg.MaxConnsPerIp = &c.ConnsPerIp
 	}

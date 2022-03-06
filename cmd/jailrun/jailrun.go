@@ -31,7 +31,7 @@ func run() error {
 	if err := config.WriteConfig(msg); err != nil {
 		return err
 	}
-	if err := config.MountDev(); err != nil {
+	if err := config.MountDev(cfg.Dev); err != nil {
 		return err
 	}
 	if err := config.RunHook(); err != nil {

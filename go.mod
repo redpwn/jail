@@ -3,11 +3,11 @@ module github.com/redpwn/jail
 go 1.17
 
 require (
-	github.com/caarlos0/env/v6 v6.7.2
+	github.com/caarlos0/env/v6 v6.9.1
 	github.com/docker/go-units v0.4.0
 	github.com/redpwn/pow v0.1.2
 	github.com/seccomp/libseccomp-golang v0.9.1
-	golang.org/x/sys v0.0.0-20211116061358-0a5406a5449c
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 	google.golang.org/protobuf v1.27.1
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 )

@@ -12,14 +12,9 @@ func RunProxy(cfg *config.Config) error {
 }
 
 func ExecServer(cfg *config.Config) error {
-	if cfg.Pow > 0 {
-		if err := execProxy(cfg); err != nil {
-			return err
-		}
-	} else {
-		if err := execNsjail(cfg); err != nil {
-			return err
-		}
+	_, proxy := cfg.NsjailListen()
+	if proxy {
+		return execProxy(cfg)
 	}
-	return nil
+	return execNsjail(cfg)
 }
