@@ -13,16 +13,21 @@ func initSeccomp(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	if arch != seccomp.ArchAMD64 {
-		return fmt.Errorf("native arch %s is not amd64", arch)
-	}
 	defaultAct := seccomp.ActErrno.SetReturnCode(int16(unix.EPERM))
 	filter, err := seccomp.NewFilter(defaultAct)
 	if err != nil {
 		return err
 	}
-	if err := filter.AddArch(seccomp.ArchX86); err != nil {
-		return err
+	if arch == seccomp.ArchAMD64 {
+		if err := filter.AddArch(seccomp.ArchX86); err != nil {
+			return err
+		}
+	} else if arch == seccomp.ArchARM64 {
+		if err := filter.AddArch(seccomp.ArchARM); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("native arch %s is not amd64 or arm64", arch)
 	}
 
 	for _, rule := range seccompRules {
