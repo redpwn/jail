@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/docker/go-units"
@@ -35,7 +36,10 @@ type Config struct {
 	Dev        []string `env:"JAIL_DEV" envDefault:"null,zero,urandom"`
 	Syscalls   []string `env:"JAIL_SYSCALLS"`
 	TmpSize    size     `env:"JAIL_TMP_SIZE"`
+	Env        []string
 }
+
+const envPrefix = "JAIL_ENV_"
 
 func (c *Config) NsjailListen() (uint32, bool) {
 	if c.Pow <= 0 {
@@ -86,6 +90,7 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 			Nosuid:  proto.Bool(true),
 		})
 	}
+	msg.Envar = c.Env
 }
 
 const tmpMountFlags = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
@@ -115,6 +120,11 @@ func GetConfig() (*Config, error) {
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("parse env config: %w", err)
+	}
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, envPrefix) {
+			cfg.Env = append(cfg.Env, strings.TrimPrefix(e, envPrefix))
+		}
 	}
 	return cfg, nil
 }
