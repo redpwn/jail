@@ -12,6 +12,7 @@ services:
       - setuid
       - setgid
       - sys_admin
+      - mknod
     security_opt:
       - apparmor=unconfined
       - seccomp=unconfined

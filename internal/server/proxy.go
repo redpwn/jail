@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 	"runtime"
 	"strings"
@@ -16,18 +17,17 @@ import (
 	"github.com/redpwn/jail/internal/privs"
 	"github.com/redpwn/pow"
 	"golang.org/x/sys/unix"
-	"inet.af/netaddr"
 )
 
 type proxyServer struct {
 	cfg        *config.Config
 	errCh      chan<- error
 	countMu    sync.Mutex
-	countPerIp map[netaddr.IP]uint32
+	countPerIp map[netip.Addr]uint32
 	countTotal uint32
 }
 
-func (p *proxyServer) connInc(ip netaddr.IP) bool {
+func (p *proxyServer) connInc(ip netip.Addr) bool {
 	p.countMu.Lock()
 	defer p.countMu.Unlock()
 	if (p.cfg.Conns > 0 && p.countTotal >= p.cfg.Conns) || (p.cfg.ConnsPerIp > 0 && p.countPerIp[ip] >= p.cfg.ConnsPerIp) {
@@ -38,7 +38,7 @@ func (p *proxyServer) connInc(ip netaddr.IP) bool {
 	return true
 }
 
-func (p *proxyServer) connDec(ip netaddr.IP) {
+func (p *proxyServer) connDec(ip netip.Addr) {
 	p.countMu.Lock()
 	defer p.countMu.Unlock()
 	p.countPerIp[ip]--
@@ -51,7 +51,9 @@ func (p *proxyServer) connDec(ip netaddr.IP) {
 // readBuf reads the internal buffer from bufio.Reader
 func readBuf(r *bufio.Reader) []byte {
 	b := make([]byte, r.Buffered())
-	r.Read(b)
+	if _, err := r.Read(b); err != nil {
+		panic(err)
+	}
 	return b
 }
 
@@ -67,7 +69,7 @@ func (p *proxyServer) runConn(inConn net.Conn) {
 	addr := inConn.RemoteAddr().(*net.TCPAddr)
 	log.Printf("connection %s: connect", addr)
 	defer log.Printf("connection %s: close", addr)
-	ip, ok := netaddr.FromStdIP(addr.IP)
+	ip, ok := netip.AddrFromSlice(addr.IP)
 	if !ok {
 		return
 	}
@@ -117,7 +119,7 @@ func startProxy(cfg *config.Config, errCh chan<- error) {
 	p := &proxyServer{
 		cfg:        cfg,
 		errCh:      errCh,
-		countPerIp: make(map[netaddr.IP]uint32),
+		countPerIp: make(map[netip.Addr]uint32),
 	}
 	for {
 		conn, err := l.Accept()
