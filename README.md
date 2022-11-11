@@ -40,12 +40,7 @@ The script [pwn.red/pow](https://pwn.red/pow) downloads, caches, and runs the so
 
 The container listens on `JAIL_PORT` (default `5000`) for incoming TCP connections.
 
-Jail requires some container security options.
-The example [`docker-compose.yml`](examples/shell/docker-compose.yml) specifies these options.
-
-- AppArmor: `unconfined`
-- seccomp: `unconfined`
-- Capabilities: `chown`, `setuid`, `setgid`, `sys_admin`, `mknod`
+Jail must be run as a privileged container.
 
 ## Configuration Reference
 
