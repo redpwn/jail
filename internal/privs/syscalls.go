@@ -10,6 +10,7 @@ type seccompRule struct {
 	names []string
 }
 
+// https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
 var seccompRules = []seccompRule{{
 	act: seccomp.ActErrno.SetReturnCode(int16(unix.ENOSYS)),
 	names: []string{
@@ -98,6 +99,7 @@ var seccompRules = []seccompRule{{
 		"ftruncate64",
 		"futex",
 		"futex_time64",
+		"futex_waitv",
 		"futimesat",
 		"getcpu",
 		"getcwd",
@@ -171,6 +173,7 @@ var seccompRules = []seccompRule{{
 		"madvise",
 		"membarrier",
 		"memfd_create",
+		"memfd_secret",
 		"mincore",
 		"mkdir",
 		"mkdirat",
@@ -213,6 +216,9 @@ var seccompRules = []seccompRule{{
 		"pipe",
 		"pipe2",
 		"pivot_root",
+		"pkey_alloc",
+		"pkey_free",
+		"pkey_mprotect",
 		"poll",
 		"ppoll",
 		"ppoll_time64",
@@ -221,6 +227,7 @@ var seccompRules = []seccompRule{{
 		"preadv",
 		"preadv2",
 		"prlimit64",
+		"process_mrelease",
 		"pselect6",
 		"pselect6_time64",
 		"pwrite64",
