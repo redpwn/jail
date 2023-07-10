@@ -13,24 +13,24 @@ import (
 type cgroup2 struct{}
 
 func (c *cgroup2) Mount() error {
-	dest := rootPath + "/unified"
-	if err := unix.Mount("", dest, "cgroup2", mountFlags, ""); err != nil {
-		return fmt.Errorf("mount cgroup2 to %s: %w", dest, err)
+	mountPath := rootPath + "/unified"
+	if err := unix.Mount("", mountPath, "cgroup2", mountFlags, ""); err != nil {
+		return fmt.Errorf("mount cgroup2 to %s: %w", mountPath, err)
 	}
-	jailPath := dest + "/jail"
+	jailPath := mountPath + "/jail"
 	if err := os.Mkdir(jailPath, 0700); err != nil {
 		return err
 	}
 	if err := os.WriteFile(jailPath+"/cgroup.procs", []byte("0"), 0); err != nil {
 		return err
 	}
-	if err := os.WriteFile(dest+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
+	if err := os.WriteFile(mountPath+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
 		return err
 	}
-	if err := os.Chown(dest+"/cgroup.procs", privs.UserId, privs.UserId); err != nil {
+	if err := os.Chown(mountPath+"/cgroup.procs", privs.UserId, privs.UserId); err != nil {
 		return err
 	}
-	runPath := dest + "/run"
+	runPath := mountPath + "/run"
 	if err := os.Mkdir(runPath, 0700); err != nil {
 		return err
 	}
@@ -43,10 +43,15 @@ func (c *cgroup2) Mount() error {
 	return nil
 }
 
-func (c *cgroup2) SetConfig(msg *nsjail.NsJailConfig) {
+func (c *cgroup2) SetConfig(msg *nsjail.NsJailConfig) error {
 	msg.UseCgroupv2 = proto.Bool(true)
 	msg.Cgroupv2Mount = proto.String(rootPath + "/unified/run")
-	if checkExists(rootPath + "/unified/memory.swap.max") {
+	exists, err := checkExists(rootPath + "/unified/memory.swap.max")
+	if err != nil {
+		return err
+	}
+	if exists {
 		msg.CgroupMemSwapMax = proto.Int64(0)
 	}
+	return nil
 }

@@ -2,6 +2,7 @@ package cgroup
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 type Cgroup interface {
 	Mount() error
-	SetConfig(*nsjail.NsJailConfig)
+	SetConfig(*nsjail.NsJailConfig) error
 }
 
 const (
@@ -20,9 +21,23 @@ const (
 	mountFlags = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
 )
 
-func checkExists(path string) bool {
+func checkExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	return err == nil
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+func Unshare() error {
+	// we may already be in a cgroup namespace, but unsharing again is ok
+	if err := unix.Unshare(unix.CLONE_NEWCGROUP); err != nil {
+		return fmt.Errorf("unshare cgroup: %w", err)
+	}
+	return nil
 }
 
 func ReadCgroup() (Cgroup, error) {
@@ -35,9 +50,11 @@ func ReadCgroup() (Cgroup, error) {
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		parts := strings.SplitN(s.Text(), ":", 3)
+		// in some environments we can't depend on the /sys/fs/cgroup mount, so we
+		// use the /proc/self/cgroup file to determine the cgroup version and the
+		// parents
 		entry := &cgroup1Entry{
 			controllers: parts[1],
-			parent:      parts[2] + "/NSJAIL",
 		}
 		switch parts[1] {
 		case "pids":

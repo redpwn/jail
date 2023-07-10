@@ -12,7 +12,6 @@ import (
 
 type cgroup1Entry struct {
 	controllers string
-	parent      string
 }
 
 type cgroup1 struct {
@@ -22,14 +21,14 @@ type cgroup1 struct {
 }
 
 func mountCgroup1Entry(name string, entry *cgroup1Entry) error {
-	dest := rootPath + "/" + name
-	if err := unix.Mount("", dest, "cgroup", mountFlags, entry.controllers); err != nil {
-		return fmt.Errorf("mount cgroup1 %s to %s: %w", entry.controllers, dest, err)
+	mountPath := rootPath + "/" + name
+	if err := unix.Mount("", mountPath, "cgroup", mountFlags, entry.controllers); err != nil {
+		return fmt.Errorf("mount cgroup1 %s to %s: %w", entry.controllers, mountPath, err)
 	}
-	if err := os.Chmod(dest, 0755); err != nil {
+	if err := os.Chmod(mountPath, 0755); err != nil {
 		return err
 	}
-	delegated := dest + "/" + entry.parent
+	delegated := mountPath + "/" + "NSJAIL"
 	if err := os.Mkdir(delegated, 0755); err != nil {
 		return err
 	}
@@ -52,14 +51,16 @@ func (c *cgroup1) Mount() error {
 	return nil
 }
 
-func (c *cgroup1) SetConfig(msg *nsjail.NsJailConfig) {
+func (c *cgroup1) SetConfig(msg *nsjail.NsJailConfig) error {
 	msg.CgroupPidsMount = proto.String(rootPath + "/pids")
-	msg.CgroupPidsParent = &c.pids.parent
 	msg.CgroupMemMount = proto.String(rootPath + "/mem")
-	msg.CgroupMemParent = &c.mem.parent
 	msg.CgroupCpuMount = proto.String(rootPath + "/cpu")
-	msg.CgroupCpuParent = &c.cpu.parent
-	if checkExists(rootPath + "/mem/memory.memsw.limit_in_bytes") {
+	exists, err := checkExists(rootPath + "/mem/memory.memsw.limit_in_bytes")
+	if err != nil {
+		return err
+	}
+	if exists {
 		msg.CgroupMemSwapMax = proto.Int64(0)
 	}
+	return nil
 }

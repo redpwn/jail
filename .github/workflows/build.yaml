@@ -1,21 +1,23 @@
-name: CI
+name: build
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - v*
   pull_request:
 jobs:
-  docker:
+  build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: docker/setup-qemu-action@v2.1.0
+      - uses: docker/setup-qemu-action@v2.2.0
         with:
           image: tonistiigi/binfmt:qemu-v6.2.0
           platforms: arm64
-      - uses: docker/setup-buildx-action@v2.2.1
-      - uses: docker/metadata-action@v4.1.1
+      - uses: docker/setup-buildx-action@v2.9.0
+        with:
+          driver-opts: image=moby/buildkit
+      - uses: docker/metadata-action@v4.6.0
         id: meta
         with:
           images: ghcr.io/${{ github.repository }}
@@ -24,13 +26,13 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-      - uses: docker/login-action@v2.1.0
+      - uses: docker/login-action@v2.2.0
         if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      - uses: docker/build-push-action@v3.2.0
+      - uses: docker/build-push-action@v4.1.1
         with:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
