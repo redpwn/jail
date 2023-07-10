@@ -25,6 +25,14 @@ func checkExists(path string) bool {
 	return err == nil
 }
 
+func Unshare() error {
+	// we may already be in a cgroup namespace, but unsharing again is ok
+	if err := unix.Unshare(unix.CLONE_NEWCGROUP); err != nil {
+		return fmt.Errorf("unshare cgroup: %w", err)
+	}
+	return nil
+}
+
 func ReadCgroup() (Cgroup, error) {
 	v1 := &cgroup1{}
 	f, err := os.Open("/proc/self/cgroup")
@@ -33,18 +41,13 @@ func ReadCgroup() (Cgroup, error) {
 	}
 	defer f.Close()
 	s := bufio.NewScanner(f)
-	v2 := &cgroup2{}
 	for s.Scan() {
 		parts := strings.SplitN(s.Text(), ":", 3)
 		// in some environments we can't depend on the /sys/fs/cgroup mount, so we
 		// use the /proc/self/cgroup file to determine the cgroup version and the
 		// parents
-		if parts[1] == "" {
-			v2.parent = parts[2]
-		}
 		entry := &cgroup1Entry{
 			controllers: parts[1],
-			parent:      parts[2] + "/NSJAIL",
 		}
 		switch parts[1] {
 		case "pids":
@@ -56,7 +59,7 @@ func ReadCgroup() (Cgroup, error) {
 		}
 	}
 	if v1.pids == nil && v1.mem == nil && v1.cpu == nil {
-		return v2, nil
+		return &cgroup2{}, nil
 	}
 	return v1, nil
 }

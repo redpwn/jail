@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/redpwn/jail/internal/cgroup"
 	"github.com/redpwn/jail/internal/config"
@@ -18,16 +19,21 @@ func run() error {
 	if len(os.Args) > 1 && os.Args[1] == "proxy" {
 		return server.RunProxy(cfg)
 	}
-	cgroup, err := cgroup.ReadCgroup()
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if err := cgroup.Unshare(); err != nil {
+		return fmt.Errorf("%w (make sure the container is privileged)", err)
+	}
+	cg, err := cgroup.ReadCgroup()
 	if err != nil {
 		return err
 	}
-	if err := cgroup.Mount(); err != nil {
+	if err := cg.Mount(); err != nil {
 		return fmt.Errorf("delegate cgroup: %w", err)
 	}
 	msg := &nsjail.NsJailConfig{}
 	cfg.SetConfig(msg)
-	cgroup.SetConfig(msg)
+	cg.SetConfig(msg)
 	if err := config.WriteConfig(msg); err != nil {
 		return err
 	}

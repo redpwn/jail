@@ -204,6 +204,7 @@ var seccompRules = []seccompRule{{
 		"munlock",
 		"munlockall",
 		"munmap",
+		"name_to_handle_at",
 		"nanosleep",
 		"newfstatat",
 		"_newselect",

@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -134,8 +133,6 @@ func startProxy(cfg *config.Config, errCh chan<- error) {
 const runPath = "/jail/run"
 
 func execProxy(cfg *config.Config) error {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	if err := privs.DropPrivs(cfg); err != nil {
 		return err
 	}

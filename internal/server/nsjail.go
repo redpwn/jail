@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 
 	"github.com/redpwn/jail/internal/config"
 	"github.com/redpwn/jail/internal/privs"
@@ -23,8 +22,6 @@ func runNsjailChild(errCh chan<- error) {
 }
 
 func execNsjail(cfg *config.Config) error {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	if err := privs.DropPrivs(cfg); err != nil {
 		return err
 	}
