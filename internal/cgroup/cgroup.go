@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"errors"
 
 	"github.com/redpwn/jail/internal/proto/nsjail"
 	"golang.org/x/sys/unix"
@@ -12,7 +13,7 @@ import (
 
 type Cgroup interface {
 	Mount() error
-	SetConfig(*nsjail.NsJailConfig)
+	SetConfig(*nsjail.NsJailConfig) error
 }
 
 const (
@@ -20,9 +21,15 @@ const (
 	mountFlags = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)
 )
 
-func checkExists(path string) bool {
+func checkExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	return err == nil
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 func Unshare() error {

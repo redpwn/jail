@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"errors"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/docker/go-units"
@@ -50,7 +51,18 @@ func (c *Config) NsjailListen() (uint32, bool) {
 
 const NsjailConfigPath = "/tmp/nsjail.cfg"
 
-func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
+func checkExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+func (c *Config) SetConfig(msg *nsjail.NsJailConfig) error {
 	msg.Mode = nsjail.Mode_LISTEN.Enum()
 	msg.TimeLimit = &c.Time
 	msg.RlimitAsType = nsjail.RLimit_HARD.Enum()
@@ -66,12 +78,6 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 		IsBind: proto.Bool(true),
 		Nodev:  proto.Bool(true),
 		Nosuid: proto.Bool(true),
-	}, {
-		Dst:    proto.String("/proc"),
-		Fstype: proto.String("proc"),
-		Nodev:  proto.Bool(true),
-		Nosuid: proto.Bool(true),
-		Noexec: proto.Bool(true),
 	}}
 	msg.Hostname = proto.String("app")
 	msg.Cwd = proto.String("/app")
@@ -86,6 +92,19 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 		msg.MaxConns = &c.Conns
 		msg.MaxConnsPerIp = &c.ConnsPerIp
 	}
+	proc, err := checkExists("/srv/proc")
+	if err != nil {
+		return err
+	}
+	if proc {
+		msg.Mount = append(msg.Mount, &nsjail.MountPt{
+			Dst:    proto.String("/proc"),
+			Fstype: proto.String("proc"),
+			Nodev:  proto.Bool(true),
+			Nosuid: proto.Bool(true),
+			Noexec: proto.Bool(true),
+		})
+	}
 	if c.TmpSize > 0 {
 		msg.Mount = append(msg.Mount, &nsjail.MountPt{
 			Dst:     proto.String("/tmp"),
@@ -97,6 +116,7 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 		})
 	}
 	msg.Envar = c.Env
+	return nil
 }
 
 const tmpMountFlags = uintptr(unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC | unix.MS_RELATIME)

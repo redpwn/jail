@@ -51,11 +51,16 @@ func (c *cgroup1) Mount() error {
 	return nil
 }
 
-func (c *cgroup1) SetConfig(msg *nsjail.NsJailConfig) {
+func (c *cgroup1) SetConfig(msg *nsjail.NsJailConfig) error {
 	msg.CgroupPidsMount = proto.String(rootPath + "/pids")
 	msg.CgroupMemMount = proto.String(rootPath + "/mem")
 	msg.CgroupCpuMount = proto.String(rootPath + "/cpu")
-	if checkExists(rootPath + "/mem/memory.memsw.limit_in_bytes") {
+	exists, err := checkExists(rootPath + "/mem/memory.memsw.limit_in_bytes")
+	if err != nil {
+		return err
+	}
+	if exists {
 		msg.CgroupMemSwapMax = proto.Int64(0)
 	}
+	return nil
 }

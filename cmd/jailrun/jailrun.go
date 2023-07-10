@@ -22,7 +22,7 @@ func run() error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err := cgroup.Unshare(); err != nil {
-		return fmt.Errorf("%w (make sure the container is privileged)", err)
+		return fmt.Errorf("%w (is the container not privileged?)", err)
 	}
 	cg, err := cgroup.ReadCgroup()
 	if err != nil {
@@ -32,8 +32,12 @@ func run() error {
 		return fmt.Errorf("delegate cgroup: %w", err)
 	}
 	msg := &nsjail.NsJailConfig{}
-	cfg.SetConfig(msg)
-	cg.SetConfig(msg)
+	if err := cfg.SetConfig(msg); err != nil {
+		return err
+	}
+	if err := cg.SetConfig(msg); err != nil {
+		return err
+	}
 	if err := config.WriteConfig(msg); err != nil {
 		return err
 	}
