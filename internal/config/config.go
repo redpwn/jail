@@ -66,6 +66,12 @@ func (c *Config) SetConfig(msg *nsjail.NsJailConfig) {
 		IsBind: proto.Bool(true),
 		Nodev:  proto.Bool(true),
 		Nosuid: proto.Bool(true),
+	}, {
+		Dst:    proto.String("/proc"),
+		Fstype: proto.String("proc"),
+		Nodev:  proto.Bool(true),
+		Nosuid: proto.Bool(true),
+		Noexec: proto.Bool(true),
 	}}
 	msg.Hostname = proto.String("app")
 	msg.Cwd = proto.String("/app")
