@@ -2,10 +2,10 @@ package cgroup
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"errors"
 
 	"github.com/redpwn/jail/internal/proto/nsjail"
 	"golang.org/x/sys/unix"

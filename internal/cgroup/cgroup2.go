@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type cgroup2 struct {}
+type cgroup2 struct{}
 
 func (c *cgroup2) Mount() error {
 	mountPath := rootPath + "/unified"

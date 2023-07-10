@@ -4,10 +4,10 @@ package config
 //go:generate protoc -I../../nsjail --go_out ../proto --go_opt Mconfig.proto=/nsjail config.proto
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"errors"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/docker/go-units"
