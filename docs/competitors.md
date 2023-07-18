@@ -1,7 +1,7 @@
 # redpwn/jail Competitor FAQ
 
 ## What is Docker?
-Here's [what Docker does](https://docs.docker.com/get-started/). Download [Docker Desktop here](https://docs.docker.com/get-docker/).
+Here's [what Docker does](https://docs.docker.com/get-started/). You can download [Docker Desktop here](https://docs.docker.com/get-docker/).
 
 ## Why provide Dockerfile instead of just the necessary libraries?
 Doing so introduces an extra step that is prone to human error. Challenge authors sometimes update the Dockerfile but forget to update the provided files. Providing the Dockerfile guarantees competitors can run a server identical to the remote server.

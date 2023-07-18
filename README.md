@@ -1,61 +1,54 @@
 # redpwn/jail
-
-An nsjail Docker image for CTF pwnables. Easily create secure, isolated inetd-style services.
+An nsjail Docker image for CTF pwnables. Easily create secure, isolated xinetd/inetd-style services.
 
 > Playing a CTF that uses redpwn/jail? Read [the Competitor FAQ](docs/competitors.md).
 
 > Want to use redpwn/jail in your CTF? Read the [the Challenge Author Guide](docs/challenge-authors.md).
 
 ## Features
-
 - Efficiently start a new container-like jail for each incoming TCP connection
 - Route each connection to the jail's stdio
 - Enforce per-connection CPU/memory/PID/disk resource limits
 - Optionally require a proof of work for each connection
 
 ## Quick start
-
 Create a `Dockerfile`:
-
 ```dockerfile
+# use the jail base image
 FROM pwn.red/jail
+# copy the root files from any Docker image
 COPY --from=ubuntu / /srv
+# setup the binary to run
 RUN mkdir /srv/app && ln -s /bin/sh /srv/app/run
 ```
 
-Then, run the container with:
-
+Then, build and run the container with:
 ```sh
 docker run -p 5000:5000 --privileged $(docker build -q .)
 ```
 
 To connect, run:
-
 ```sh
 nc localhost 5000
 ```
 
-You're now connected to a shell that's fully sandboxed by redpwn/jail!
+You're now connected to a shell that's fully sandboxed by redpwn/jail! You can run any command you like.
 
 For an example of installing packages inside the jail, [see `examples/cowsay`](examples/cowsay/Dockerfile).
 
 For a Python example with environment configuration, [see `examples/python`](examples/python/Dockerfile).
 
 ## Background
+Turning an executable into a sandboxed network service is not an easy task. Traditionally, this involved a long Dockerfile based on xinetd, which has a very limited feature set. Ideally, we would also want complete isolation between connections and be able to set strict limits so resources are not exhausted by a single competitor. Many challenges, particularly pwnables, will result in remote code execution. This makes isolation even more challenging.
 
-Turning an executable into a sandboxed network service is not an easy task. Traditionally, this involved a long Dockerfile based on xinetd, which has a very limited feature set. Ideally, we would also want complete isolation between connections, and be able to set strict limits so resources are not exhausted by a single competitor.
-
-Many challenges, particularly pwnables, will result in remote code execution. This makes isolation even more challenging.
-
-Google's [nsjail](https://github.com/google/nsjail) provides the server and strong isolation we need. Unfortunately, nsjail provides limited defense-in-depth, has many complex configuration options, and doesn't work in every environment. redpwn/jail is a wrapper around nsjail with sensible default configuration for CTF challenges that exposes a small set of options a CTF challenge may require. It also includes a proof-of-work system that can be enabled with one environment variable.
+Google's [nsjail](https://github.com/google/nsjail) provides the server and strong isolation we need. Unfortunately, nsjail provides limited defense-in-depth, has many complex options, and doesn't work in every environment. redpwn/jail is a wrapper around nsjail with sensible default configuration for CTF challenges that exposes a small set of options a CTF challenge may require. It also includes a proof-of-work system that can be enabled with one environment variable.
 
 ## Configuration Reference
+> For an overview of using redpwn/jail in a CTF, read [the Challenge Author Guide](docs/challenge-authors.md).
 
-> For an overview of using redpwn/jail in a CTF, read [the Challenge Author guide](docs/challenge-authors.md).
+redpwn/jail mounts `/srv` in the container to `/` in each jail, then executes `/app/run` (so `/srv/app/run` outside the jail) with a working directory of `/app`.
 
-`/srv` in the container is mounted to `/` in each jail. Inside each jail, `/app/run` is executed with a working directory of `/app`.
-
-To configure these, [use `ENV`](https://docs.docker.com/engine/reference/builder/#env). To remove a limit, set its value to `0`.
+To configure these, [use `ENV`](https://docs.docker.com/engine/reference/builder/#env) in your Dockerfile. To remove a limit, set its value to `0`.
 
 | Name                | Default             | Description                                                                                                                 |
 | ------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -79,7 +72,6 @@ Files specified in `JAIL_DEV` are only available if `/srv/dev` exists.
 In each jail, procfs is only mounted to `/proc` if `/srv/proc` exists.
 
 ### Proof of Work
-
 To require a proof of work from clients for every connection, [set `JAIL_POW`](#configuration-reference) to a nonzero difficulty value. Each difficulty increase of 1500 requires approximately 1 second of CPU time on a modern processor. The proof of work system is designed to not be parallelizable.
 
-End-users are instructed to use the script at [pwn.red/pow](https://pwn.red/pow) to download, cache, and run the solver.
+End users are instructed to use the script at [pwn.red/pow](https://pwn.red/pow) to download, cache, and run a prebuilt solver.

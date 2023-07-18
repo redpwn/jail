@@ -19,8 +19,7 @@ This is probably what you want 90% of the time, but it is not required. For exam
 `run` is usually a binary, but any executable is fine. A shell script (with shebang and executable permission set) is a good choice if more flexibility is needed. If you do this, then `/srv` must include a suitable shell. Also, it is good practice to use `exec` whenever possible to reduce the number of processes created.
 
 ## Installing dependencies
-It is often necessary to install additional libraries or other dependencies. Consider utilizing multi-stage builds to do this:
-
+It is often necessary to install additional libraries or other dependencies. Consider using multi-stage builds to do this:
 ```dockerfile
 FROM python:slim AS app
 RUN pip install --no-cache-dir pycryptodome
@@ -31,7 +30,7 @@ COPY --from=app / /srv
 ```
 
 ## Resource limits
-redpwn/jail sets fairly strict resource limits by default. It is enough for most challenges, but can be increased if needed. Instructions for doing so are in the [configuration reference](https://github.com/redpwn/jail#configuration-reference).
+redpwn/jail sets fairly strict resource limits by default. They are enough for most pwnable challenges but can be increased if needed. For a full list of options, read the [configuration reference](../README.md#configuration-reference).
 
 Notably, challenges written with Python will likely need an increase in memory and process limits. In general, if you find your challenges are hanging or consistently getting killed, then you may need to increase resource limits.
 
@@ -58,4 +57,4 @@ COPY --from=ubuntu@sha256:abcdef0123456789 / /srv
 There are some challenges where this does not really matter, but providing a specific image reference is still recommended just in case.
 
 ## Reference
-Read the [configuration reference](../readme.md#configuration-reference) for more information on how to configure redpwn/jail.
+Read the [configuration reference](../README.md#configuration-reference) for more information on how to configure redpwn/jail.
