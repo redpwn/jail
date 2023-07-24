@@ -80,7 +80,7 @@ func (p *proxyServer) runConn(inConn net.Conn) {
 	defer p.connDec(ip)
 
 	chall := pow.GenerateChallenge(p.cfg.Pow)
-	fmt.Fprintf(inConn, "proof of work: curl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chall)
+	fmt.Fprintf(inConn, "proof of work:\ncurl -sSfL https://pwn.red/pow | sh -s %s\nsolution: ", chall)
 	r := bufio.NewReader(io.LimitReader(inConn, 1024)) // prevent DoS
 	proof, err := r.ReadString('\n')
 	if err != nil {
