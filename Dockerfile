@@ -7,7 +7,7 @@ RUN apt-get update && \
 COPY nsjail .
 RUN make -j
 
-FROM golang:1.20.6-bookworm AS run
+FROM golang:1.22.0-bookworm AS run
 WORKDIR /app
 RUN apt-get update && apt-get install -y libseccomp-dev libgmp-dev
 COPY go.mod go.sum ./
