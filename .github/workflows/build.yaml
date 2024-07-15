@@ -28,15 +28,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/setup-qemu-action@v2.2.0
-        with:
-          image: tonistiigi/binfmt:qemu-v6.2.0
-          platforms: arm64
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           file: Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/management-2024/jail:${{ env.TAG }}
-          platforms: linux/amd64,linux/arm64
