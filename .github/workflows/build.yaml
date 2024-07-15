@@ -4,6 +4,7 @@ name: Build and push docker image
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   REGISTRY: registry.snakectf.org
