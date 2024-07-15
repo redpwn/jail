@@ -33,4 +33,4 @@ jobs:
         with:
           file: Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/MadrHacks/jail:${{ env.TAG }}
+          tags: ${{ env.REGISTRY }}/madrhacks/jail:${{ env.TAG }}
