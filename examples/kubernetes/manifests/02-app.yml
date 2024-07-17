@@ -1,0 +1,90 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: jailtest
+  name: app
+  labels:
+    snakectf.org/challenge: jailtest
+    snakectf.org/component: app
+spec:
+  type: ClusterIP
+  ports:
+    - name: jail
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    snakectf.org/challenge: jailtest
+    snakectf.org/component: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: jailtest
+  name: app
+  labels:
+    snakectf.org/challenge: jailtest
+    snakectf.org/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      snakectf.org/challenge: jailtest
+      snakectf.org/component: app
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        snakectf.org/challenge: jailtest
+        snakectf.org/component: app
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: app
+          image: ghcr.io/madrhacks/jail:latest
+          imagePullPolicy: Always
+
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: true
+
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+
+          env:
+            - name: JAIL_FLAG
+              value: "snakeCTF{jailest}"
+
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            periodSeconds: 10
+
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 5m
+              ephemeral-storage: 100Mi
+            limits:
+              memory: 100Mi
+              cpu: 50m
+              ephemeral-storage: 500Mi
+
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+
+      enableServiceLinks: false
+      automountServiceAccountToken: false
