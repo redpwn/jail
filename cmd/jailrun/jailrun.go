@@ -28,7 +28,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err := cg.Mount(); err != nil {
+	if err := cg.Mount(cfg.UserId); err != nil {
 		return fmt.Errorf("delegate cgroup: %w", err)
 	}
 	msg := &nsjail.NsJailConfig{}

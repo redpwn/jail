@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/redpwn/jail/internal/privs"
 	"github.com/redpwn/jail/internal/proto/nsjail"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
@@ -12,7 +11,7 @@ import (
 
 type cgroup2 struct{}
 
-func (c *cgroup2) Mount() error {
+func (c *cgroup2) Mount(userId int) error {
 	mountPath := rootPath + "/unified"
 	if err := unix.Mount("", mountPath, "cgroup2", mountFlags, ""); err != nil {
 		return fmt.Errorf("mount cgroup2 to %s: %w", mountPath, err)
@@ -27,7 +26,7 @@ func (c *cgroup2) Mount() error {
 	if err := os.WriteFile(mountPath+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
 		return err
 	}
-	if err := os.Chown(mountPath+"/cgroup.procs", privs.UserId, privs.UserId); err != nil {
+	if err := os.Chown(mountPath+"/cgroup.procs", userId, userId); err != nil {
 		return err
 	}
 	runPath := mountPath + "/run"
@@ -37,7 +36,7 @@ func (c *cgroup2) Mount() error {
 	if err := os.WriteFile(runPath+"/cgroup.subtree_control", []byte("+pids +memory +cpu"), 0); err != nil {
 		return err
 	}
-	if err := os.Chown(runPath, privs.UserId, privs.UserId); err != nil {
+	if err := os.Chown(runPath, userId, userId); err != nil {
 		return err
 	}
 	return nil

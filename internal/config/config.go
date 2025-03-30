@@ -37,6 +37,7 @@ type Config struct {
 	Dev        []string `env:"JAIL_DEV" envDefault:"null,zero,urandom"`
 	Syscalls   []string `env:"JAIL_SYSCALLS"`
 	TmpSize    size     `env:"JAIL_TMP_SIZE"`
+	UserId     int      `env:"JAIL_USER" envDefault:"1000"`
 	Env        []string
 }
 

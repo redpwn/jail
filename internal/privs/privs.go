@@ -7,19 +7,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const UserId = 1000
-
 func DropPrivs(cfg *config.Config) error {
+	userId := cfg.UserId
 	if err := initSeccomp(cfg); err != nil {
 		return fmt.Errorf("init seccomp: %w", err)
 	}
-	if err := unix.Setresgid(UserId, UserId, UserId); err != nil {
+	if err := unix.Setresgid(userId, userId, userId); err != nil {
 		return fmt.Errorf("setresgid jail: %w", err)
 	}
-	if err := unix.Setgroups([]int{UserId}); err != nil {
+	if err := unix.Setgroups([]int{userId}); err != nil {
 		return fmt.Errorf("setgroups jail: %w", err)
 	}
-	if err := unix.Setresuid(UserId, UserId, UserId); err != nil {
+	if err := unix.Setresuid(userId, userId, userId); err != nil {
 		return fmt.Errorf("setresuid jail: %w", err)
 	}
 	capHeader := &unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}

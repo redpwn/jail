@@ -12,7 +12,7 @@ import (
 )
 
 type Cgroup interface {
-	Mount() error
+	Mount(int) error
 	SetConfig(*nsjail.NsJailConfig) error
 }
 
