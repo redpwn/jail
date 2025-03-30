@@ -63,6 +63,7 @@ To configure these, [use `ENV`](https://docs.docker.com/engine/reference/builder
 | `JAIL_DEV`          | `null,zero,urandom` | Device files available in `/dev` separated by `,`                                                                           |
 | `JAIL_SYSCALLS`     | _(none)_            | Additional allowed syscall names separated by `,`                                                                           |
 | `JAIL_TMP_SIZE`     | `0`                 | Maximum size of writable `/tmp` directory in each jail. If set to `0`, the writable `/tmp` directory is unavailable.        |
+| `JAIL_USER`         | `1000`              | UID to execute as                                                                                                           |
 | `JAIL_ENV_*`        | _(none)_            | Environment variables available in each jail (with the `JAIL_ENV_` prefix removed)                                          |
 
 If it exists, `/jail/hook.sh` is executed before the jail starts. Use this script to configure nsjail options or the execution environment.

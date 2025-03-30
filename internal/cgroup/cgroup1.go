@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/redpwn/jail/internal/privs"
 	"github.com/redpwn/jail/internal/proto/nsjail"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
@@ -20,7 +19,7 @@ type cgroup1 struct {
 	cpu  *cgroup1Entry
 }
 
-func mountCgroup1Entry(name string, entry *cgroup1Entry) error {
+func mountCgroup1Entry(name string, entry *cgroup1Entry, userId int) error {
 	mountPath := rootPath + "/" + name
 	if err := unix.Mount("", mountPath, "cgroup", mountFlags, entry.controllers); err != nil {
 		return fmt.Errorf("mount cgroup1 %s to %s: %w", entry.controllers, mountPath, err)
@@ -32,20 +31,20 @@ func mountCgroup1Entry(name string, entry *cgroup1Entry) error {
 	if err := os.Mkdir(delegated, 0755); err != nil {
 		return err
 	}
-	if err := os.Chown(delegated, privs.UserId, privs.UserId); err != nil {
+	if err := os.Chown(delegated, userId, userId); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *cgroup1) Mount() error {
-	if err := mountCgroup1Entry("pids", c.pids); err != nil {
+func (c *cgroup1) Mount(userId int) error {
+	if err := mountCgroup1Entry("pids", c.pids, userId); err != nil {
 		return err
 	}
-	if err := mountCgroup1Entry("mem", c.mem); err != nil {
+	if err := mountCgroup1Entry("mem", c.mem, userId); err != nil {
 		return err
 	}
-	if err := mountCgroup1Entry("cpu", c.cpu); err != nil {
+	if err := mountCgroup1Entry("cpu", c.cpu, userId); err != nil {
 		return err
 	}
 	return nil
